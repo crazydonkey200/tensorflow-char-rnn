@@ -19,59 +19,114 @@ class CharRNN(object):
     self.max_grad_norm = max_grad_norm
     self.num_layers = num_layers
     self.embedding_size = embedding_size
-
-    # Placeholder for input data
+    self.model_size = (embedding_size * vocab_size + # embedding parameters
+                       # lstm parameters
+                       4 * hidden_size * (hidden_size + embedding_size + 1) +
+                       # softmax parameters
+                       vocab_size * (hidden_size + 1) +
+                       # multilayer lstm parameters for extra layers.
+                       (num_layers - 1) * 4 * hidden_size *
+                       (hidden_size + hidden_size + 1))
+    
+    # Placeholder to feed in input and targets/labels data.
     self.input_data = tf.placeholder(tf.int64,
-                                     [self.batch_size, self.num_unrollings])
+                                     [self.batch_size, self.num_unrollings],
+                                     name='inputs')
     self.targets = tf.placeholder(tf.int64,
-                                  [self.batch_size, self.num_unrollings])
+                                  [self.batch_size, self.num_unrollings],
+                                  name='targets')
 
-    with tf.variable_scope('rnn_cell') as rnn_cell:
-      # Create multilayer LSTM cell
-      lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_size,
-                                               input_size=self.embedding_size,
-                                               forget_bias=0.0)
-      cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * self.num_layers)
+    # with tf.variable_scope('rnn_cell') as rnn_cell:
+    # Create multilayer LSTM cell.
+    lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_size,
+                                             input_size=self.embedding_size,
+                                             forget_bias=0.0)
+    cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * self.num_layers)
 
-    # Compute zeros_state to initialize the cell.
-    self.zero_state = cell.zero_state(self.batch_size, tf.float32)
+    with tf.name_scope('initial_state'):
+      # zero_state is used to compute the intial state for cell.
+      self.zero_state = cell.zero_state(self.batch_size, tf.float32)
+      
+      # Placeholder to feed in initial state.
+      self.initial_state = tf.placeholder(tf.float32,
+                                          [self.batch_size, cell.state_size],
+                                          'initial_state')
 
-    # Placeholder for feeding initial state.
-    self.initial_state = tf.placeholder(tf.float32,
-                                        [self.batch_size, cell.state_size])
+    # Embeddings layers.
+    with tf.name_scope('embedding_layer'):
+      with tf.device("/cpu:0"):
+        self.embedding = tf.get_variable("embedding",
+                                         [self.vocab_size, self.embedding_size])
+        inputs = tf.nn.embedding_lookup(self.embedding, self.input_data)
 
-    # use embeddings
-    with tf.device("/cpu:0"):
-      self.embedding = tf.get_variable("embedding",
-                                       [self.vocab_size, self.embedding_size])
-      inputs = tf.nn.embedding_lookup(self.embedding, self.input_data)
+    with tf.name_scope('slice_inputs'):
+      # Slice inputs into a list of shape [batch_size, 1] data colums.
+      sliced_inputs = [tf.reshape(input_, [self.batch_size, self.embedding_size])
+                       for input_ in tf.split(1, self.num_unrollings, inputs)]
+    
+    # print(sliced_inputs[0].get_shape())
+    # Copy cell to do unrolling and collect outputs.
+    outputs, final_state = rnn.rnn(cell, sliced_inputs, initial_state=self.initial_state)
+    self.final_state = final_state
 
-    # Prepare the inputs.
-    sliced_inputs = [tf.squeeze(input_, [1])
-                     for input_ in tf.split(1, self.num_unrollings, inputs)]
-    outputs, state = rnn.rnn(cell, sliced_inputs, initial_state=self.initial_state)
+    with tf.name_scope('flatten_ouput_and_target'):
+      # Reshape outputs into one dimension.
+      flat_outputs = tf.reshape(tf.concat(1, outputs), [-1, hidden_size])
+      # Reshape the targets too.      
+      flat_targets = tf.reshape(tf.concat(1, self.targets), [-1])
 
-    flat_outputs = tf.reshape(tf.concat(1, outputs), [-1, hidden_size])
+    
+    # Create softmax parameters, weights and bias.
     with tf.variable_scope('softmax') as sm_vs:
       softmax_w = tf.get_variable("softmax_w", [hidden_size, vocab_size])
       softmax_b = tf.get_variable("softmax_b", [vocab_size])
-    logits = tf.matmul(flat_outputs, softmax_w) + softmax_b
-    flat_targets = tf.reshape(tf.concat(1, self.targets), [-1])
-    self.probs = tf.nn.softmax(logits)
-    
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, flat_targets)
-    
-    self.mean_loss = tf.reduce_sum(loss) / (self.batch_size * self.num_unrollings)
+      logits = tf.matmul(flat_outputs, softmax_w) + softmax_b
+      self.probs = tf.nn.softmax(logits)
+
+
+    with tf.name_scope('loss'):
+      # Compute mean cross entropy loss for each output.
+      loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, flat_targets)
+      
+      self.mean_loss = tf.reduce_sum(loss) / (self.batch_size * self.num_unrollings)
+
+
+    with tf.name_scope('loss_monitor'):
+      # Count the number of elements and the sum of mean_loss
+      # from each batch to compute the average loss.
+      count = tf.Variable(1.0, name='count')
+      sum_mean_loss = tf.Variable(1.0, name='sum_mean_loss')
+      
+      self.reset_loss_monitor = tf.group(sum_mean_loss.assign(0.0),
+                                         count.assign(0.0),
+                                         name='reset_loss_monitor')
+      self.update_loss_monitor = tf.group(sum_mean_loss.assign(sum_mean_loss +
+                                                               self.mean_loss),
+                                          count.assign(count + 1),
+                                          name='update_loss_monitor')
+      with tf.control_dependencies([self.update_loss_monitor]):
+        self.average_loss = sum_mean_loss / count
+        self.ppl = tf.exp(self.average_loss)
+
+      # Monitor the loss.
+      if is_training:
+        loss_summary_name = "average training loss"
+        ppl_summary_name = "training perplexity"
+      else:
+        loss_summary_name = "average evaluation loss"
+        ppl_summary_name = "evaluation perplexity"
+      average_loss_summary = tf.scalar_summary(loss_summary_name, self.average_loss)
+      ppl_summary = tf.scalar_summary(ppl_summary_name, self.ppl)
+
     # Monitor the loss.
-    loss_summary = tf.scalar_summary("cross entropy", self.mean_loss)
-    # Merge all the summaries and write them out to /tmp/mnist_logs
-    self.summaries = tf.merge_all_summaries()
+    self.summaries = tf.merge_summary([average_loss_summary, ppl_summary],
+                                      name='loss_monitor')
     
-    self.final_state = state
-    
-    
+    tf.Variable(1.0, name='just_testing_3')
+
+    self.global_step = tf.get_variable('global_step', [],
+                                       initializer=tf.constant_initializer(0.0))
     if is_training:
-      self.global_step = tf.Variable(0)
       learning_rate = tf.train.exponential_decay(1.0, self.global_step,
                                                  5000, 0.1, staircase=True)
       tvars = tf.trainable_variables()
@@ -82,136 +137,80 @@ class CharRNN(object):
       self.saver = tf.train.Saver()
     
       
-  def run_epoch(self, session, data_size, batch_generator, is_train,
+  def run_epoch(self, session, data_size, batch_generator, is_training,
                 verbose=False, frequency=10, summary_writer=None, debug=False):
     """Runs the model on the given data for one full pass."""
     epoch_size = ((data_size // self.batch_size) - 1) // self.num_unrollings
     
-    sum_loss = 0.0
-    iters = 0
-    state = self.zero_state.eval()
-    if is_train:
-      extra_op = self.train_op
-    else:
-      extra_op = tf.no_op()
     print('epoch_size: %d' % epoch_size)
     print('data_size: %d' % data_size)
     print('num_unrollings: %d' % self.num_unrollings)
     print('batch_size: %d' % self.batch_size)
+
+    if is_training:
+      extra_op = self.train_op
+    else:
+      extra_op = tf.no_op()
+
+    # Prepare initial state and reset the average loss
+    # computation.
+    state = self.zero_state.eval()
+    self.reset_loss_monitor.run()
     start_time = time.time()
-    if debug:
-      print('init state: %s' % state)
     for step in range(epoch_size):
+      # Generate the batch and use [:-1] as inputs and [1:] as targets.
       data = batch_generator.next()
+      inputs = np.array(data[:-1]).transpose()
+      targets = np.array(data[1:]).transpose()
 
-      x = np.array(data[:-1]).transpose()
-      y = np.array(data[1:]).transpose()
-      if is_train:
-        mean_loss, state, _, summary_str, global_step = session.run([self.mean_loss,
-                                                                     self.final_state,
-                                                                     extra_op,
-                                                                     self.summaries,
-                                                                     self.global_step],
-                                                                    {self.input_data: x,
-                                                                     self.targets: y,
-                                                                     self.initial_state: state})
-      else:
-        mean_loss, state, _, probs  = session.run([self.mean_loss,
-                                                   self.final_state,
-                                                   extra_op,
-                                                   self.probs],
-                                                  {self.input_data: x,
-                                                   self.targets: y,
-                                                   self.initial_state: state})
-        if debug:
-          print('after step %d' % step)
-          print('input: %s' % x)
-          print('state: %s' % state)
-          print('probs: %s' % probs[0])
-          print('mean_loss: %s' % mean_loss)
-          print('computed loss: %s' % -np.log(probs[0][y[0][0]]))
+      ops = [self.average_loss, self.final_state, extra_op,
+             self.summaries, self.global_step]
+      
+      feed_dict = {self.input_data: inputs, self.targets: targets,
+                   self.initial_state: state}
 
-      sum_loss += mean_loss
-      iters += 1 # self.num_unrollings
-      ppl = np.exp(sum_loss / iters)
+      results = session.run(ops, feed_dict)
+      average_loss, state, _, summary_str, global_step = results
+      
+      ppl = np.exp(average_loss)
       if verbose and ((step+1) % frequency == 0):
         print("%.1f%%, step:%d, perplexity: %.3f, speed: %.0f wps" %
               (step * 1.0 / epoch_size * 100, step, ppl,
-               iters * self.batch_size / (time.time() - start_time)))
-      if is_train and (summary_writer is not None):
-        summary_writer.add_summary(summary_str, global_step)
+               step * self.batch_size * self.num_unrollings /
+               (time.time() - start_time)))
 
     print("final ppl: %.3f, speed: %.0f wps" %
-          (ppl, iters * self.batch_size / (time.time() - start_time)))
-    return ppl
+          (ppl, step * self.batch_size * self.num_unrollings /
+           (time.time() - start_time)))
+    return ppl, summary_str, global_step
 
-  def sample_seq(self, session, length, vocab_index_dict, index_vocab_dict,
-                 start_char=None, max_prob=True, prime_text=None):
+  def sample_seq(self, session, length, start_text, vocab_index_dict,
+                 index_vocab_dict, max_prob=True):
 
     state = self.zero_state.eval()
 
-    # use prime_text to warm up the RNN.
-    if prime_text is not None:
-      seq = list(prime_text)
-      for char in prime_text[:-1]:
+    # use start_text to warm up the RNN.
+    if start_text is not None:
+      seq = list(start_text)
+      for char in start_text[:-1]:
         x = np.array([[char2id(char, vocab_index_dict)]])
         state = session.run(self.final_state,
                             {self.input_data: x,
                              self.initial_state: state})
-      x = np.array([[char2id(prime_text[-1], vocab_index_dict)]])
-        
-    elif start_char is not None:
-      seq = [start_char]
-      x = np.array([[char2id(start_char, vocab_index_dict)]])
+      x = np.array([[char2id(start_text[-1], vocab_index_dict)]])
 
     for i in range(length):
-      
-      # losses = []
-      # next_states = []
-      # print(state.shape)
-      # print(x)
-      # sum_loss = 0.0
-      
-      #for j in range(self.vocab_size):
       state, probs = session.run([self.final_state,
                                   self.probs],
                                  {self.input_data: x,
                                   self.initial_state: state})
-                                             
-      # next_states.append(next_state)
-      # losses.append(loss)
-
-
-      # if max_prob:
-      #   # print(losses)
-      #   print(x)
-      #   sample = np.argmin(losses)
-      #   print(losses)
-      #   print(sample)
-      #   sum_loss += losses[sample]
-      #   mean_loss = (losses[sample])
-      #   print('input: %s %s' % (x, index_vocab_dict[x[0][0]]))
-      #   print('state: %s' % state)
-      #   print('probs: %s' % probs)
-      #   print('output: %s %s' % (sample, index_vocab_dict[sample]))
-      #   print('mean_loss: %s' % loss)
-      #   print('computed loss: %s' % -np.log(probs[0][sample]))
-        
-      # print(state.shape)
-      # if not (np.sum(probs[0]) == 1.0):
-      #   print(probs[0])
-      #   # print(np.sum(probs[0]))
-      # # assert np.sum(probs[0]) == 1.0
       if max_prob:
         sample = np.argmax(probs[0])
       else:
         sample = np.random.choice(self.vocab_size, 1, p=probs[0])[0]
-      
+
       seq.append(id2char(sample, index_vocab_dict))
       x = np.array([[sample]])
-      # state = next_states[sample]
-
-    # print(np.exp(sum_loss / length))
     return ''.join(seq)
       
         
@@ -228,6 +227,7 @@ class BatchGenerator(object):
       self.index_vocab_dict = index_vocab_dict
       
       segment = self._text_size // batch_size
+
       # number of elements in cursor list is the same as
       # batch_size.  each batch is just the collection of
       # elements in where the cursors are pointing to.
@@ -284,104 +284,4 @@ def id2char(index, index_vocab_dict):
 def id2char_list(lst, index_vocab_dict):
   return [id2char(i, index_vocab_dict) for i in lst]
 
-
-def main(_):
-  with open("tiny_shakespeare.txt", 'r') as f:
-    text = f.read()
-
-  print(text[100:200])
-  print(len(text))
-  text = text[:1000]
-
-  # prepare data
-  train_size = int(0.8 * len(text))
-  valid_size = int(0.1 * len(text))
-  test_size = len(text) - train_size - valid_size
-  train_text = text[:train_size]
-  valid_text = text[train_size:train_size + valid_size]
-  test_text = text[train_size + valid_size:]
-
-  print(train_size, train_text[:64])
-  print(valid_size, valid_text[:64])
-  print(test_size, test_text[:64])
-
-  unique_chars = list(set(text))
-  vocab_size = len(unique_chars)
-  print('vocab size: %d' % vocab_size)
-  vocab_index_dict = {}
-  index_vocab_dict = {}
-
-  for i, char in enumerate(unique_chars):
-    vocab_index_dict[char] = i
-    index_vocab_dict[i] = char
-
-  batch_size = 1
-  n_unrollings = 10
-  train_batches = BatchGenerator(train_text, batch_size, n_unrollings, vocab_size)
-  eval_train_batches = BatchGenerator(train_text, 1, 1, vocab_size)
-  valid_batches = BatchGenerator(valid_text, 1, 1, vocab_size)
-  test_batches = BatchGenerator(test_text, 1, 1, vocab_size)
-
-  params = {'batch_size': batch_size, 'num_unrollings': n_unrollings,
-            'vocab_size': vocab_size, 'hidden_size': 10,
-            'max_grad_norm': 5.0, 'embedding_size': 10, 
-            'num_layers': 1}
-  
-  tf.reset_default_graph()
-  graph = tf.Graph()
-  with graph.as_default():
-    with tf.variable_scope('char_rnn') as scope:
-      train_model = CharRNN(is_training=True, **params)
-      tf.get_variable_scope().reuse_variables()
-      valid_model = CharRNN(is_training=False, **params)
-      test_model = CharRNN(is_training=False, **params)
-
-  n_epochs = 10
-  
-  model_name = 'char_rnn'
-  saved_model_dir = '/tmp/test_char_rnn'
-  
-  init_from_path = '' #'/tmp/saved_char_rnn_model-240'
-
-  with tf.Session(graph=graph) as sess:
-    if init_from_path:
-      train_model.saver.restore(sess, init_from_path)
-    else:
-      tf.initialize_all_variables().run()
-    for i in range(n_epochs):
-      print('\nEpoch %d\n' % i)
-      print('training')
-      run_epoch(sess, train_model, train_size, train_batches,
-                is_train=True, verbose=True)
-      saved_path = train_model.saver.save(sess, saved_model_dir,
-                                          global_step=train_model.global_step)
-      print('model saved in %s\n' % saved_path)
-      print('validation')
-      run_epoch(sess, valid_model, valid_size, valid_batches,
-                is_train=False, verbose=True)
-    print('\ntest')
-    run_epoch(sess, test_model, test_size, test_batches,
-              is_train=False, verbose=True)
-
-
-  train_model.saver.last_checkpoints
-  with tf.Session(graph=graph) as sess:
-    train_model.saver.restore(sess, train_model.saver.last_checkpoints[-1])
-    for i in range(1):
-      print('\n')
-      print('='*80)
-      print(sample_seq(sess, valid_model, 100, is_argmax=False,
-                       prime_text='First Citizen:'))
-      print('='*80)
-      print('\n')
-
-
-  try_text = 'salhjshakjbfsascasrs'
-  try_text = train_text[20:40]
-  try_batches = BatchGenerator(try_text, 1, 1, vocab_size=vocab_size)
-  
-  with tf.Session(graph=graph) as sess:
-    train_model.saver.restore(sess, train_model.saver.last_checkpoints[-1])
-    run_epoch(sess, valid_model, len(try_text), try_batches,
-              is_train=False, verbose=True)
 
