@@ -40,7 +40,7 @@ def main():
                         help='output experiment logs to stdout or a file')
     parser.add_argument('--tb_log_dir', type=str,
                         default='tensorboard_log',
-                        help=('directory to store logs for tensorboard',
+                        help=('directory to store logs for tensorboard'
                               ' visualization'))
     parser.add_argument('--init_model', type=str,
                         default='',
@@ -53,23 +53,31 @@ def main():
                         help=('current valid perplexity'))
     parser.add_argument('--progress_freq', type=int,
                         default=100,
-                        help=('frequency for progress report in training',
+                        help=('frequency for progress report in training'
                               ' and evalution.'))
     parser.add_argument('--verbose', type=int,
                         default=0,
-                        help=('whether to show progress report in training',
+                        help=('whether to show progress report in training'
                               ' and evalution.'))
-
-    parser.add_argument('--test', dest='test', action='store_true')
+    
+    parser.add_argument('--test', dest='test', action='store_true',
+                        help=('use the first 1000 character to as data'
+                              ' to test the implementation'))
     parser.set_defaults(test=False)
 
-    parser.add_argument('--keep_tb_log', dest='keep_tb_log', action='store_true')
+    parser.add_argument('--keep_tb_log', dest='keep_tb_log', action='store_true',
+                        help=('append the new summary to the tensorboard log directory'
+                              ' or create a new one.'))
+
     parser.set_defaults(keep_tb_log=False)
 
-    parser.add_argument('--sample', dest='sample', action='store_true')
+    parser.add_argument('--sample', dest='sample', action='store_true',
+                        help='sample new text that start with start_text')
     parser.set_defaults(sample=False)
 
-    parser.add_argument('--max_prob', dest='max_prob', action='store_true')
+    parser.add_argument('--max_prob', dest='max_prob', action='store_true',
+                        help='always pick the most probable one in sampling')
+
     parser.set_defaults(max_prob=False)
     
     parser.add_argument('--start_text', type=str,
@@ -80,14 +88,15 @@ def main():
                         default=100,
                         help='length of sampled sequence')
 
-    parser.add_argument('--evaluate', dest='evaluate', action='store_true')
+    parser.add_argument('--evaluate', dest='evaluate', action='store_true',
+                        help='compute the perplexity of given text')
     parser.set_defaults(evaluate=False)
-
     parser.add_argument('--example_text', type=str,
                         default='The meaning of life is 42.',
                         help='compute the perplexity of given example text.')
     
-    parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--debug', dest='debug', action='store_true',
+                        help='show debug information')
     parser.set_defaults(debug=False)
     
     args = parser.parse_args()
