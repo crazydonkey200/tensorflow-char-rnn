@@ -4,6 +4,7 @@ import os
 import shutil
 import sys
 
+import numpy as np
 from char_rnn_model import *
 
 def main():
@@ -49,7 +50,7 @@ def main():
                         default='',
                         help=('current best model'))
     parser.add_argument('--best_valid_ppl', type=float,
-                        default='',
+                        default=np.Inf,
                         help=('current valid perplexity'))
     parser.add_argument('--progress_freq', type=int,
                         default=100,
