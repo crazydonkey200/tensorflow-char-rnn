@@ -48,7 +48,7 @@ def main():
     parser.add_argument('--best_model', type=str,
                         default='',
                         help=('current best model'))
-    parser.add_argument('--best_valid_ppl', type=str,
+    parser.add_argument('--best_valid_ppl', type=float,
                         default='',
                         help=('current valid perplexity'))
     parser.add_argument('--progress_freq', type=int,
@@ -92,8 +92,6 @@ def main():
     
     args = parser.parse_args()
 
-    
-    
     if args.log_file == 'stdout':
         logging.basicConfig(stream=sys.stdout,
                             format='%(asctime)s %(levelname)s:%(message)s', 
@@ -260,6 +258,8 @@ def main():
                 best_valid_ppl = valid_ppl
             writer.add_summary(valid_summary_str, global_step)
             writer.flush()
+            logging.info('best model is saved in %s', best_model)
+            logging.info('best validation ppl is %f\n', best_valid_ppl)
 
         logging.info('latest model is saved in %s', saved_path)
         logging.info('best model is saved in %s', best_model)
