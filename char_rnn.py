@@ -115,6 +115,8 @@ def main():
 
     print('all information logged to %s' % args.log_file)
 
+    logging.info('args are:\n%s', args)
+    
     logging.info('Reading data from: %s', args.data_file)
     with open(args.data_file, 'r') as f:
         text = f.read()
@@ -151,7 +153,9 @@ def main():
               'embedding_size': args.embedding_size, 
               'num_layers': args.num_layers,
               'learning_rate': args.learning_rate}
-
+    logging.info('parameters are:\n%s', params)
+    
+    
     # Create batch generators
     batch_size = params['batch_size']
     num_unrollings = params['num_unrollings']
