@@ -12,37 +12,57 @@ def main():
     parser.add_argument('--data_file', type=str,
                         default='data/tiny_shakespeare.txt',
                         help='data file')
-    parser.add_argument('--save', type=str, default='saved_model/model',
+
+    # Parameters for saving models.
+    parser.add_argument('--saved_model', type=str, default='saved_model/model',
                         help='directory and prefix to store checkpointed models')
     parser.add_argument('--save_best_model', type=str, default='best_model/model',
                         help='directory and prefix to store the best model')
+    parser.add_argument('--tb_log_dir', type=str,
+                        default='tensorboard_log',
+                        help=('directory to store logs for tensorboard'
+                              ' visualization'))
+
+    # Parameters to configure the neural network.
     parser.add_argument('--hidden_size', type=int, default=128,
-                        help='size of RNN hidden states')
+                        help='size of RNN hidden state vector')
     parser.add_argument('--embedding_size', type=int, default=50,
                         help='size of character embeddings')
     parser.add_argument('--num_layers', type=int, default=2,
                         help='number of layers in the RNN')
-    parser.add_argument('--batch_size', type=int, default=20,
-                        help='minibatch size')
     parser.add_argument('--num_unrollings', type=int, default=10,
                         help='number of unrolling steps.')
+
+    # Parameters to control the training.
     parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
-    # parser.add_argument('--save_freq', type=int, default=1000,
-    #                     help='frequency of model saving')
+    parser.add_argument('--batch_size', type=int, default=20,
+                        help='minibatch size')
+
+    # Parameters for gradient descent.
     parser.add_argument('--max_grad_norm', type=float, default=5.,
                         help='clip global grad norm')
     parser.add_argument('--learning_rate', type=float, default=2e-3,
                         help='initial learning rate')
     parser.add_argument('--decay_rate', type=float, default=0.95,
                         help='decay rate for rmsprop')
+
+    # Parameters for logging.
     parser.add_argument('--log_file', type=str,
                         default='stdout',
                         help='output experiment logs to stdout or a file')
-    parser.add_argument('--tb_log_dir', type=str,
-                        default='tensorboard_log',
-                        help=('directory to store logs for tensorboard'
-                              ' visualization'))
+
+    parser.add_argument('--progress_freq', type=int,
+                        default=100,
+                        help=('frequency for progress report in training'
+                              ' and evalution.'))
+
+    parser.add_argument('--verbose', type=int,
+                        default=0,
+                        help=('whether to show progress report in training'
+                              ' and evalution.'))
+
+    # Parameters to feed in the initial model and current best model.
     parser.add_argument('--init_model', type=str,
                         default='',
                         help=('initial model'))
@@ -52,26 +72,14 @@ def main():
     parser.add_argument('--best_valid_ppl', type=float,
                         default=np.Inf,
                         help=('current valid perplexity'))
-    parser.add_argument('--progress_freq', type=int,
-                        default=100,
-                        help=('frequency for progress report in training'
-                              ' and evalution.'))
-    parser.add_argument('--verbose', type=int,
-                        default=0,
-                        help=('whether to show progress report in training'
-                              ' and evalution.'))
     
-    parser.add_argument('--test', dest='test', action='store_true',
-                        help=('use the first 1000 character to as data'
-                              ' to test the implementation'))
-    parser.set_defaults(test=False)
-
+    # Parameters for continuing training.
     parser.add_argument('--keep_tb_log', dest='keep_tb_log', action='store_true',
                         help=('append the new summary to the tensorboard log directory'
                               ' or create a new one.'))
-
     parser.set_defaults(keep_tb_log=False)
 
+    # Parameters for sampling.
     parser.add_argument('--sample', dest='sample', action='store_true',
                         help='sample new text that start with start_text')
     parser.set_defaults(sample=False)
@@ -89,19 +97,28 @@ def main():
                         default=100,
                         help='length of sampled sequence')
 
+    # Parameters for evaluation (computing perplexity of given text).
     parser.add_argument('--evaluate', dest='evaluate', action='store_true',
                         help='compute the perplexity of given text')
     parser.set_defaults(evaluate=False)
     parser.add_argument('--example_text', type=str,
                         default='The meaning of life is 42.',
                         help='compute the perplexity of given example text.')
-    
+
+    # Parameters for debugging.
     parser.add_argument('--debug', dest='debug', action='store_true',
                         help='show debug information')
     parser.set_defaults(debug=False)
+
+    # Parameters for unittesting the implementation.
+    parser.add_argument('--test', dest='test', action='store_true',
+                        help=('use the first 1000 character to as data'
+                              ' to test the implementation'))
+    parser.set_defaults(test=False)
     
     args = parser.parse_args()
 
+    # Set logging file.
     if args.log_file == 'stdout':
         logging.basicConfig(stream=sys.stdout,
                             format='%(asctime)s %(levelname)s:%(message)s', 
@@ -113,9 +130,10 @@ def main():
                             level=logging.INFO,
                             datefmt='%I:%M:%S')
 
-    print('all information logged to %s' % args.log_file)
+    print('all information will be logged to %s' % args.log_file)
 
-    logging.info('args are:\n%s', args)
+    if args.debug:
+        logging.info('args are:\n%s', args)
     
     logging.info('Reading data from: %s', args.data_file)
     with open(args.data_file, 'r') as f:
@@ -144,7 +162,7 @@ def main():
         vocab_index_dict[char] = i
         index_vocab_dict[i] = char
 
-    # Prepare parameters
+    # Prepare parameters.
     params = {'batch_size': args.batch_size,
               'num_unrollings': args.num_unrollings,
               'vocab_size': vocab_size,
@@ -155,8 +173,7 @@ def main():
               'learning_rate': args.learning_rate}
     logging.info('parameters are:\n%s', params)
     
-    
-    # Create batch generators
+    # Create batch generators.
     batch_size = params['batch_size']
     num_unrollings = params['num_unrollings']
     train_batches = BatchGenerator(train_text, batch_size, num_unrollings, vocab_size, 
@@ -206,9 +223,8 @@ def main():
                                         is_training=False)[0]
             print('\nexample text is: %s' % args.example_text)
             print('its perplexity is: %s' % ppl)
-        return ppl
-        
-            
+        return ppl            
+
     logging.info('Start training')
     logging.info('model size (number of parameters): %s', train_model.model_size)
     
