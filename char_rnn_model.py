@@ -4,6 +4,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.models.rnn import rnn
 
+# Disable Tensorflow logging messages.
+logging.getLogger('tensorflow').setLevel(logging.WARNING)
 
 class CharRNN(object):
   """Character RNN model."""
