@@ -14,14 +14,9 @@ def main():
                         help='data file')
 
     # Parameters for saving models.
-    parser.add_argument('--saved_model', type=str, default='saved_model/model',
-                        help='directory and prefix to store checkpointed models')
-    parser.add_argument('--save_best_model', type=str, default='best_model/model',
-                        help='directory and prefix to store the best model')
-    parser.add_argument('--tb_log_dir', type=str,
-                        default='tensorboard_log',
-                        help=('directory to store logs for tensorboard'
-                              ' visualization'))
+    parser.add_argument('--output_dir', type=str, default='output',
+                        help=('directory to store final and'
+                              ' intermediate results and models.'))
 
     # Parameters to configure the neural network.
     parser.add_argument('--hidden_size', type=int, default=128,
@@ -48,10 +43,6 @@ def main():
                         help='decay rate for rmsprop')
 
     # Parameters for logging.
-    parser.add_argument('--log_file', type=str,
-                        default='stdout',
-                        help='output experiment logs to stdout or a file')
-
     parser.add_argument('--progress_freq', type=int,
                         default=100,
                         help=('frequency for progress report in training'
@@ -74,10 +65,10 @@ def main():
                         help=('current valid perplexity'))
     
     # Parameters for continuing training.
-    parser.add_argument('--keep_tb_log', dest='keep_tb_log', action='store_true',
-                        help=('append the new summary to the tensorboard log directory'
-                              ' or create a new one.'))
-    parser.set_defaults(keep_tb_log=False)
+    parser.add_argument('--continue_train', dest='continue', action='store_true',
+                        help=('whether this training is continued from existing output'
+                              ' or started fresh.'))
+    parser.set_defaults(continue_train=False)
 
     # Parameters for sampling.
     parser.add_argument('--sample', dest='sample', action='store_true',
@@ -118,6 +109,34 @@ def main():
     
     args = parser.parse_args()
 
+    # parser.add_argument('--save_model', type=str, default='save_model/model',
+    #                     help='directory and prefix to store checkpointed models')
+    # parser.add_argument('--save_best_model', type=str, default='best_model/model',
+    #                     help='directory and prefix to store the best model')
+    # parser.add_argument('--tb_log_dir', type=str,
+    #                     default='tensorboard_log',
+    #                     help=('directory to store logs for tensorboard'
+    #                           ' visualization'))
+    # parser.add_argument('--log_file', type=str,
+    #                     default='stdout',
+    #                     help='output experiment logs to stdout or a file')
+    # parser.add_argument('--keep_tb_log', dest='keep_tb_log', action='store_true',
+    #                     help=('append the new summary to the tensorboard log directory'
+    #                           ' or create a new one.'))
+    # parser.set_defaults(keep_tb_log=False)
+
+    args.save_model = os.path.join(args.output_dir, 'save_model/model')
+    args.save_best_model = os.path.join(args.output_dir, 'best_model/model')
+    args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/model')
+    args.log_file = os.path.join(args.output_dir, 'experiment_log')
+
+    # Create necessary directories.
+    if (not args.continue_train) and os.path.exists(args.output_dir):
+        shutil.rmtree(args.output_dir)
+    for paths in [args.save_model, args.save_best_model,
+                  args.tb_log_dir]:
+        os.makedirs(os.path.dirname(paths))
+    
     # Set logging file.
     if args.log_file == 'stdout':
         logging.basicConfig(stream=sys.stdout,
@@ -228,18 +247,6 @@ def main():
     logging.info('Start training')
     logging.info('model size (number of parameters): %s', train_model.model_size)
     
-    if os.path.exists(args.tb_log_dir) and (not args.keep_tb_log):
-        shutil.rmtree(args.tb_log_dir)
-
-    # create new folders if the save directory doesn't exist.
-    save_dir = os.path.split(args.save)[0]
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    save_dir = os.path.split(args.save_best_model)[0]
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
     if args.best_model:
         best_model = args.best_model
         best_valid_ppl = args.best_valid_ppl
@@ -268,7 +275,7 @@ def main():
             # record the summary
             writer.add_summary(train_summary_str, global_step)
             # save model
-            saved_path = train_model.saver.save(session, args.save,
+            saved_path = train_model.saver.save(session, args.save_model,
                                                 global_step=train_model.global_step)
             logging.info('model saved in %s\n', saved_path)
             logging.info('Evaluate on validation set')
