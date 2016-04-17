@@ -7,6 +7,8 @@ import sys
 import numpy as np
 from char_rnn_model import *
 
+TF_VERSION = int(tf.__version__.split('.')[1])
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_file', type=str,
@@ -250,7 +252,16 @@ def main():
         best_model = ''
         
     with tf.Session(graph=graph) as session:
-        writer = tf.train.SummaryWriter(args.tb_log_dir, session.graph)
+        # Version 8 changed the api of summary writer to use
+        # graph instead of graph_def.
+        if TF_VERSION >= 8:
+            graph_info = session.graph
+        else:
+            graph_info = session.graph_def
+
+        train_writer = tf.train.SummaryWriter(args.tb_log_dir + 'train/', graph_info)
+        valid_writer = tf.train.SummaryWriter(args.tb_log_dir + 'valid/', graph_info)
+        
         # load a saved model or start from random initialization.
         if args.init_model:
             train_model.saver.restore(session, args.init_model)
@@ -269,7 +280,8 @@ def main():
                 verbose=args.verbose,
                 freq=args.progress_freq)
             # record the summary
-            writer.add_summary(train_summary_str, global_step)
+            train_writer.add_summary(train_summary_str, global_step)
+            train_writer.flush()
             # save model
             saved_path = train_model.saver.save(session, args.save_model,
                                                 global_step=train_model.global_step)
@@ -289,8 +301,8 @@ def main():
                     args.save_best_model,
                     global_step=train_model.global_step)
                 best_valid_ppl = valid_ppl
-            writer.add_summary(valid_summary_str, global_step)
-            writer.flush()
+            valid_writer.add_summary(valid_summary_str, global_step)
+            valid_writer.flush()
             logging.info('best model is saved in %s', best_model)
             logging.info('best validation ppl is %f\n', best_valid_ppl)
 
