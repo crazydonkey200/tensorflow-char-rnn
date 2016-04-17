@@ -35,7 +35,12 @@ def main():
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=20,
                         help='minibatch size')
-
+    parser.add_argument('--train_frac', type=int, default=0.9,
+                        help='fraction of data used for training.')
+    parser.add_argument('--valid_frac', type=int, default=0.05,
+                        help='fraction of data used for validation.')
+    # test_frac is computed as (1 - train_frac - valid_frac).
+    
     # Parameters for gradient descent.
     parser.add_argument('--max_grad_norm', type=float, default=5.,
                         help='clip global grad norm')
@@ -155,15 +160,18 @@ def main():
     logging.info('Reading data from: %s', args.data_file)
     with open(args.data_file, 'r') as f:
         text = f.read()
+
     if args.test:
         text = text[:1000]
     logging.info('number of characters: %s', len(text))
-    n = 10
-    logging.info('first %d characters: %s', n, text[:n])
+
+    if args.debug:
+        n = 10        
+        logging.info('first %d characters: %s', n, text[:n])
 
     logging.info('Creating train, valid, test split')
-    train_size = int(0.8 * len(text))
-    valid_size = int(0.1 * len(text))
+    train_size = int(args.train_frac * len(text))
+    valid_size = int(args.valid_frac * len(text))
     test_size = len(text) - train_size - valid_size
     train_text = text[:train_size]
     valid_text = text[train_size:train_size + valid_size]
