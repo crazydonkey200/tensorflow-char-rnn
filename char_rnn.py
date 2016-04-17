@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import shutil
@@ -50,7 +51,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Parameters for logging.
-    parser.add_argument('--log_to_file', dest='continue', action='store_true',
+    parser.add_argument('--log_to_file', dest='log_to_file', action='store_true',
                         help=('whether the experiment log is stored in a file under'
                               '  output_dir or printed at stdout.'))
     parser.set_defaults(log_to_file=False)
@@ -77,11 +78,11 @@ def main():
                         help=('current valid perplexity'))
     
     # Parameters for continuing training.
-    parser.add_argument('--continue_train', dest='continue', action='store_true',
+    parser.add_argument('--continue_train', dest='continue_train', action='store_true',
                         help=('whether this training is continued from existing output'
                               ' or started fresh.'))
     parser.set_defaults(continue_train=False)
-
+    
     # Parameters for sampling.
     parser.add_argument('--sample', dest='sample', action='store_true',
                         help='sample new text that start with start_text')
@@ -129,9 +130,9 @@ def main():
     # Create necessary directories.
     if (not args.continue_train) and os.path.exists(args.output_dir):
         shutil.rmtree(args.output_dir)
-    for paths in [args.save_model, args.save_best_model,
-                  args.tb_log_dir]:
-        os.makedirs(os.path.dirname(paths))
+        for paths in [args.save_model, args.save_best_model,
+                      args.tb_log_dir]:
+            os.makedirs(os.path.dirname(paths))
 
     # Specify logging config.
     if args.log_to_file:
@@ -193,7 +194,7 @@ def main():
               'vocab_size': vocab_size,
               'hidden_size': args.hidden_size,
               'max_grad_norm': args.max_grad_norm,
-              'embedding_size': args.embedding_size, 
+              'embedding_size': args.embedding_size,
               'num_layers': args.num_layers,
               'learning_rate': args.learning_rate}
     logging.info('parameters are:\n%s', params)
@@ -319,10 +320,20 @@ def main():
         logging.info('best validation ppl is %f\n', best_valid_ppl)
         logging.info('Evaluate the best model on test set')
         train_model.saver.restore(session, best_model)
-        valid_model.run_epoch(session, test_size, test_batches,
-                              is_training=False,
-                              verbose=args.verbose,
-                              freq=args.progress_freq)
+        test_ppl, _, _ = valid_model.run_epoch(session, test_size, test_batches,
+                                               is_training=False,
+                                               verbose=args.verbose,
+                                               freq=args.progress_freq)
+
+        result = params
+        result['latest_model'] = saved_path
+        result['best_model'] = best_model
+        # Convert to float because numpy.float is not json serializable.
+        result['best_valid_ppl'] = float(best_valid_ppl)
+        result['test_ppl'] = float(test_ppl)
+        with open(os.path.join(args.output_dir, 'result.json'), 'w') as f:
+            json.dump(result, f, indent=2, sort_keys=True)
+            
         return best_model
 
 
