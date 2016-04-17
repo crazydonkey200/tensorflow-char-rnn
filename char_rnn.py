@@ -109,22 +109,7 @@ def main():
     
     args = parser.parse_args()
 
-    # parser.add_argument('--save_model', type=str, default='save_model/model',
-    #                     help='directory and prefix to store checkpointed models')
-    # parser.add_argument('--save_best_model', type=str, default='best_model/model',
-    #                     help='directory and prefix to store the best model')
-    # parser.add_argument('--tb_log_dir', type=str,
-    #                     default='tensorboard_log',
-    #                     help=('directory to store logs for tensorboard'
-    #                           ' visualization'))
-    # parser.add_argument('--log_file', type=str,
-    #                     default='stdout',
-    #                     help='output experiment logs to stdout or a file')
-    # parser.add_argument('--keep_tb_log', dest='keep_tb_log', action='store_true',
-    #                     help=('append the new summary to the tensorboard log directory'
-    #                           ' or create a new one.'))
-    # parser.set_defaults(keep_tb_log=False)
-
+    # Specifying location to store model, best model, experiment log and tensorboard log.
     args.save_model = os.path.join(args.output_dir, 'save_model/model')
     args.save_best_model = os.path.join(args.output_dir, 'best_model/model')
     args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/model')
