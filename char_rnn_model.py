@@ -83,12 +83,13 @@ class CharRNN(object):
     outputs, final_state = rnn.rnn(cell, sliced_inputs, initial_state=self.initial_state)
     self.final_state = final_state
 
-    with tf.name_scope('flatten_ouput_and_target'):
-      # Reshape outputs into one dimension.
+    with tf.name_scope('flatten_ouputs'):
+      # Flatten the outputs into one dimension.
       flat_outputs = tf.reshape(tf.concat(1, outputs), [-1, hidden_size])
-      # Reshape the targets too.      
-      flat_targets = tf.reshape(tf.concat(1, self.targets), [-1])
 
+    with tf.name_scope('flatten_targets'):
+      # Flatten the targets too.
+      flat_targets = tf.reshape(tf.concat(1, self.targets), [-1])
     
     # Create softmax parameters, weights and bias.
     with tf.variable_scope('softmax') as sm_vs:
