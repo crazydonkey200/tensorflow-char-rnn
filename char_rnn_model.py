@@ -123,12 +123,16 @@ class CharRNN(object):
         self.ppl = tf.exp(self.average_loss)
 
       # Monitor the loss.
-      if is_training:
-        loss_summary_name = "average training loss"
-        ppl_summary_name = "training perplexity"
-      else:
-        loss_summary_name = "average evaluation loss"
-        ppl_summary_name = "evaluation perplexity"
+      # if is_training:
+      #   loss_summary_name = "average training loss"
+      #   ppl_summary_name = "training perplexity"
+      # else:
+      #   loss_summary_name = "average evaluation loss"
+      #   ppl_summary_name = "evaluation perplexity"
+      
+      loss_summary_name = "average loss"
+      ppl_summary_name = "perplexity"
+  
       average_loss_summary = tf.scalar_summary(loss_summary_name, self.average_loss)
       ppl_summary = tf.scalar_summary(ppl_summary_name, self.ppl)
 
