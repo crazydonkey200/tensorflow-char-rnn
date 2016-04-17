@@ -43,6 +43,11 @@ def main():
                         help='decay rate for rmsprop')
 
     # Parameters for logging.
+    parser.add_argument('--log_to_file', dest='continue', action='store_true',
+                        help=('whether the experiment log is stored in a file under'
+                              '  output_dir or printed at stdout.'))
+    parser.set_defaults(log_to_file=False)
+    
     parser.add_argument('--progress_freq', type=int,
                         default=100,
                         help=('frequency for progress report in training'
@@ -109,11 +114,10 @@ def main():
     
     args = parser.parse_args()
 
-    # Specifying location to store model, best model, experiment log and tensorboard log.
+    # Specifying location to store model, best model and tensorboard log.
     args.save_model = os.path.join(args.output_dir, 'save_model/model')
     args.save_best_model = os.path.join(args.output_dir, 'best_model/model')
-    args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/model')
-    args.log_file = os.path.join(args.output_dir, 'experiment_log')
+    args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/')
 
     # Create necessary directories.
     if (not args.continue_train) and os.path.exists(args.output_dir):
@@ -121,7 +125,13 @@ def main():
     for paths in [args.save_model, args.save_best_model,
                   args.tb_log_dir]:
         os.makedirs(os.path.dirname(paths))
-    
+
+    # Specify logging config.
+    if args.log_to_file:
+        args.log_file = os.path.join(args.output_dir, 'experiment_log')
+    else:
+        args.log_file = 'stdout'
+
     # Set logging file.
     if args.log_file == 'stdout':
         logging.basicConfig(stream=sys.stdout,
@@ -134,6 +144,7 @@ def main():
                             level=logging.INFO,
                             datefmt='%I:%M:%S')
 
+    print('all final and intermediate outputs will be stored in %s' % args.output_dir)
     print('all information will be logged to %s' % args.log_file)
 
     if args.debug:
@@ -239,7 +250,7 @@ def main():
         best_model = ''
         
     with tf.Session(graph=graph) as session:
-        writer = tf.train.SummaryWriter(args.tb_log_dir, session.graph_def)
+        writer = tf.train.SummaryWriter(args.tb_log_dir, session.graph)
         # load a saved model or start from random initialization.
         if args.init_model:
             train_model.saver.restore(session, args.init_model)
