@@ -213,6 +213,7 @@ def main():
         vocab_file = os.path.splitext(args.data_file)[0] + '_vocab.json'
         save_vocab(vocab_index_dict, vocab_file)
         logging.info('Vocabulary is saved in %s', vocab_file)
+        args.vocab_file = vocab_file
 
     params['vocab_size'] = vocab_size
     logging.info('vocab size: %d', vocab_size)
@@ -276,6 +277,7 @@ def main():
     result = {}
     result['params'] = params
     result['vocab_file'] = args.vocab_file
+
     try:
         # Use try and finally to make sure that intermediate
         # results are saved correctly so that training can
