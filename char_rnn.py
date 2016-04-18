@@ -134,8 +134,9 @@ def main():
     # Create necessary directories.
     if args.init_from_dir:
         args.output_dir = args.init_from_dir
-    elif os.path.exists(args.output_dir):
-        shutil.rmtree(args.output_dir)
+    else:
+        if os.path.exists(args.output_dir):
+            shutil.rmtree(args.output_dir)
         for paths in [args.save_model, args.save_best_model,
                       args.tb_log_dir]:
             os.makedirs(os.path.dirname(paths))
