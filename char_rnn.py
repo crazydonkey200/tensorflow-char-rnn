@@ -78,11 +78,14 @@ def main():
                         help=('current valid perplexity'))
     
     # Parameters for continuing training.
-    parser.add_argument('--continue_train', dest='continue_train', action='store_true',
-                        help=('whether this training is continued from existing output'
-                              ' or started fresh.'))
-    parser.set_defaults(continue_train=False)
-    
+    # parser.add_argument('--continue_train', dest='continue_train', action='store_true',
+    #                     help=('whether this training is continued from existing output'
+    #                           ' or started fresh.'))
+    # parser.set_defaults(continue_train=False)
+
+    parser.add_argument('--init_from_dir', type=str, default='',
+                        help='continue from the outputs in the given directory')
+
     # Parameters for sampling.
     parser.add_argument('--sample', dest='sample', action='store_true',
                         help='sample new text that start with start_text')
@@ -94,7 +97,7 @@ def main():
     parser.set_defaults(max_prob=False)
     
     parser.add_argument('--start_text', type=str,
-                        default='The ',
+                        default='The meaning of life is ',
                         help='the text to start with')
 
     parser.add_argument('--length', type=int,
@@ -128,7 +131,9 @@ def main():
     args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/')
 
     # Create necessary directories.
-    if (not args.continue_train) and os.path.exists(args.output_dir):
+    if args.init_from_dir:
+        args.output_dir = args.init_from_dir
+    elif os.path.exists(args.output_dir):
         shutil.rmtree(args.output_dir)
         for paths in [args.save_model, args.save_best_model,
                       args.tb_log_dir]:
@@ -189,16 +194,25 @@ def main():
         index_vocab_dict[i] = char
 
     # Prepare parameters.
-    params = {'batch_size': args.batch_size,
-              'num_unrollings': args.num_unrollings,
-              'vocab_size': vocab_size,
-              'hidden_size': args.hidden_size,
-              'max_grad_norm': args.max_grad_norm,
-              'embedding_size': args.embedding_size,
-              'num_layers': args.num_layers,
-              'learning_rate': args.learning_rate}
+    if args.init_from_dir:
+        with open(os.path.join(args.init_from_dir, 'result.json'), 'r') as f:
+            result = json.load(f)
+        params = result['params']
+        args.init_model = result['latest_model']
+        best_model = result['best_model']
+        best_valid_ppl = result['best_valid_ppl']
+    else:
+        params = {'batch_size': args.batch_size,
+                  'num_unrollings': args.num_unrollings,
+                  'vocab_size': vocab_size,
+                  'hidden_size': args.hidden_size,
+                  'max_grad_norm': args.max_grad_norm,
+                  'embedding_size': args.embedding_size,
+                  'num_layers': args.num_layers,
+                  'learning_rate': args.learning_rate}
+        best_model = ''
     logging.info('parameters are:\n%s', params)
-    
+
     # Create batch generators.
     batch_size = params['batch_size']
     num_unrollings = params['num_unrollings']
@@ -253,88 +267,89 @@ def main():
 
     logging.info('Start training')
     logging.info('model size (number of parameters): %s', train_model.model_size)
-    
-    if args.best_model:
-        best_model = args.best_model
-        best_valid_ppl = args.best_valid_ppl
-    else:
-        best_model = ''
-        
-    with tf.Session(graph=graph) as session:
-        # Version 8 changed the api of summary writer to use
-        # graph instead of graph_def.
-        if TF_VERSION >= 8:
-            graph_info = session.graph
-        else:
-            graph_info = session.graph_def
 
-        train_writer = tf.train.SummaryWriter(args.tb_log_dir + 'train/', graph_info)
-        valid_writer = tf.train.SummaryWriter(args.tb_log_dir + 'valid/', graph_info)
-        
-        # load a saved model or start from random initialization.
-        if args.init_model:
-            train_model.saver.restore(session, args.init_model)
-        else:
-            tf.initialize_all_variables().run()
-        for i in range(args.num_epochs):
-            logging.info('\n')
-            logging.info('Epoch %d\n', i)
-            logging.info('Training on training set')
-            # training step
-            ppl, train_summary_str, global_step = train_model.run_epoch(
-                session,
-                train_size,
-                train_batches,
-                is_training=True,
-                verbose=args.verbose,
-                freq=args.progress_freq)
-            # record the summary
-            train_writer.add_summary(train_summary_str, global_step)
-            train_writer.flush()
-            # save model
-            saved_path = train_model.saver.save(session, args.save_model,
-                                                global_step=train_model.global_step)
-            logging.info('model saved in %s\n', saved_path)
-            logging.info('Evaluate on validation set')
-            valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
-                session,
-                valid_size,
-                valid_batches, 
-                is_training=False,
-                verbose=args.verbose,
-                freq=args.progress_freq)
-            # save and update best model
-            if (not best_model) or (valid_ppl < best_valid_ppl):
-                best_model = train_model.best_model_saver.save(
+    result = {}
+    result['params'] = params
+
+    try:
+        # Use try and finally to make sure that intermediate
+        # results are saved correctly so that training can
+        # be continued later after interruption.
+        with tf.Session(graph=graph) as session:
+            # Version 8 changed the api of summary writer to use
+            # graph instead of graph_def.
+            if TF_VERSION >= 8:
+                graph_info = session.graph
+            else:
+                graph_info = session.graph_def
+
+            train_writer = tf.train.SummaryWriter(args.tb_log_dir + 'train/', graph_info)
+            valid_writer = tf.train.SummaryWriter(args.tb_log_dir + 'valid/', graph_info)
+
+            # load a saved model or start from random initialization.
+            if args.init_model:
+                train_model.saver.restore(session, args.init_model)
+            else:
+                tf.initialize_all_variables().run()
+            for i in range(args.num_epochs):
+                logging.info('\n')
+                logging.info('Epoch %d\n', i)
+                logging.info('Training on training set')
+                # training step
+                ppl, train_summary_str, global_step = train_model.run_epoch(
                     session,
-                    args.save_best_model,
-                    global_step=train_model.global_step)
-                best_valid_ppl = valid_ppl
-            valid_writer.add_summary(valid_summary_str, global_step)
-            valid_writer.flush()
+                    train_size,
+                    train_batches,
+                    is_training=True,
+                    verbose=args.verbose,
+                    freq=args.progress_freq)
+                # record the summary
+                train_writer.add_summary(train_summary_str, global_step)
+                train_writer.flush()
+                # save model
+                saved_path = train_model.saver.save(session, args.save_model,
+                                                    global_step=train_model.global_step)
+                logging.info('model saved in %s\n', saved_path)
+                logging.info('Evaluate on validation set')
+                valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
+                    session,
+                    valid_size,
+                    valid_batches, 
+                    is_training=False,
+                    verbose=args.verbose,
+                    freq=args.progress_freq)
+                # save and update best model
+                if (not best_model) or (valid_ppl < best_valid_ppl):
+                    best_model = train_model.best_model_saver.save(
+                        session,
+                        args.save_best_model,
+                        global_step=train_model.global_step)
+                    best_valid_ppl = valid_ppl
+                valid_writer.add_summary(valid_summary_str, global_step)
+                valid_writer.flush()
+                logging.info('best model is saved in %s', best_model)
+                logging.info('best validation ppl is %f\n', best_valid_ppl)
+                result['latest_model'] = saved_path
+                result['best_model'] = best_model
+                # Convert to float because numpy.float is not json serializable.
+                result['best_valid_ppl'] = float(best_valid_ppl)
+
+            logging.info('latest model is saved in %s', saved_path)
             logging.info('best model is saved in %s', best_model)
             logging.info('best validation ppl is %f\n', best_valid_ppl)
-
-        logging.info('latest model is saved in %s', saved_path)
-        logging.info('best model is saved in %s', best_model)
-        logging.info('best validation ppl is %f\n', best_valid_ppl)
-        logging.info('Evaluate the best model on test set')
-        train_model.saver.restore(session, best_model)
-        test_ppl, _, _ = valid_model.run_epoch(session, test_size, test_batches,
-                                               is_training=False,
-                                               verbose=args.verbose,
-                                               freq=args.progress_freq)
-
-        result = params
-        result['latest_model'] = saved_path
-        result['best_model'] = best_model
-        # Convert to float because numpy.float is not json serializable.
-        result['best_valid_ppl'] = float(best_valid_ppl)
-        result['test_ppl'] = float(test_ppl)
-        with open(os.path.join(args.output_dir, 'result.json'), 'w') as f:
+            logging.info('Evaluate the best model on test set')
+            train_model.saver.restore(session, best_model)
+            test_ppl, _, _ = valid_model.run_epoch(session, test_size, test_batches,
+                                                   is_training=False,
+                                                   verbose=args.verbose,
+                                                   freq=args.progress_freq)
+            result['test_ppl'] = float(test_ppl)
+    finally:
+        result_path = os.path.join(args.output_dir, 'result.json')
+        if os.path.exists(result_path):
+            os.remove(result_path)
+        with open(result_path, 'w') as f:
             json.dump(result, f, indent=2, sort_keys=True)
-            
-        return best_model
 
 
 if __name__ == '__main__':
