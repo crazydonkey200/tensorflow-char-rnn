@@ -12,9 +12,15 @@ TF_VERSION = int(tf.__version__.split('.')[1])
 
 def main():
     parser = argparse.ArgumentParser()
+
+    # Data and vocabulary file
     parser.add_argument('--data_file', type=str,
                         default='data/tiny_shakespeare.txt',
                         help='data file')
+    parser.add_argument('--vocab_file', type=str,
+                        default='',
+                        help=('file containing the vocabulary, if not given,'
+                              ' will be created.'))
 
     # Parameters for saving models.
     parser.add_argument('--output_dir', type=str, default='output',
@@ -78,11 +84,6 @@ def main():
                         help=('current valid perplexity'))
     
     # Parameters for continuing training.
-    # parser.add_argument('--continue_train', dest='continue_train', action='store_true',
-    #                     help=('whether this training is continued from existing output'
-    #                           ' or started fresh.'))
-    # parser.set_defaults(continue_train=False)
-
     parser.add_argument('--init_from_dir', type=str, default='',
                         help='continue from the outputs in the given directory')
 
@@ -159,10 +160,31 @@ def main():
 
     print('all final and intermediate outputs will be stored in %s' % args.output_dir)
     print('all information will be logged to %s' % args.log_file)
-
+    
     if args.debug:
         logging.info('args are:\n%s', args)
-    
+
+    # Prepare parameters.
+    if args.init_from_dir:
+        with open(os.path.join(args.init_from_dir, 'result.json'), 'r') as f:
+            result = json.load(f)
+        params = result['params']
+        args.init_model = result['latest_model']
+        best_model = result['best_model']
+        best_valid_ppl = result['best_valid_ppl']
+        args.vocab_file = result['vocab_file']
+    else:
+        params = {'batch_size': args.batch_size,
+                  'num_unrollings': args.num_unrollings,
+                  'hidden_size': args.hidden_size,
+                  'max_grad_norm': args.max_grad_norm,
+                  'embedding_size': args.embedding_size,
+                  'num_layers': args.num_layers,
+                  'learning_rate': args.learning_rate}
+        best_model = ''
+    logging.info('parameters are:\n%s', params)
+        
+    # Read and split data.
     logging.info('Reading data from: %s', args.data_file)
     with open(args.data_file, 'r') as f:
         text = f.read()
@@ -183,35 +205,18 @@ def main():
     valid_text = text[train_size:train_size + valid_size]
     test_text = text[train_size + valid_size:]
 
-    logging.info('Creating vocabulary')
-    unique_chars = list(set(text))
-    vocab_size = len(unique_chars)
-    logging.info('vocab size: %d', vocab_size)
-    vocab_index_dict = {}
-    index_vocab_dict = {}
-    for i, char in enumerate(unique_chars):
-        vocab_index_dict[char] = i
-        index_vocab_dict[i] = char
-
-    # Prepare parameters.
-    if args.init_from_dir:
-        with open(os.path.join(args.init_from_dir, 'result.json'), 'r') as f:
-            result = json.load(f)
-        params = result['params']
-        args.init_model = result['latest_model']
-        best_model = result['best_model']
-        best_valid_ppl = result['best_valid_ppl']
+    if args.vocab_file:
+        vocab_index_dict, index_vocab_dict, vocab_size = load_vocab(args.vocab_file)
     else:
-        params = {'batch_size': args.batch_size,
-                  'num_unrollings': args.num_unrollings,
-                  'vocab_size': vocab_size,
-                  'hidden_size': args.hidden_size,
-                  'max_grad_norm': args.max_grad_norm,
-                  'embedding_size': args.embedding_size,
-                  'num_layers': args.num_layers,
-                  'learning_rate': args.learning_rate}
-        best_model = ''
-    logging.info('parameters are:\n%s', params)
+        logging.info('Creating vocabulary')
+        vocab_index_dict, index_vocab_dict, vocab_size = create_vocab(text)
+        vocab_file = os.path.splitext(args.data_file)[0] + '_vocab.json'
+        save_vocab(vocab_index_dict, vocab_file)
+        logging.info('Vocabulary is saved in %s', vocab_file)
+
+    params['vocab_size'] = vocab_size
+    logging.info('vocab size: %d', vocab_size)
+
 
     # Create batch generators.
     batch_size = params['batch_size']
@@ -270,7 +275,7 @@ def main():
 
     result = {}
     result['params'] = params
-
+    result['vocab_file'] = args.vocab_file
     try:
         # Use try and finally to make sure that intermediate
         # results are saved correctly so that training can
@@ -352,5 +357,31 @@ def main():
             json.dump(result, f, indent=2, sort_keys=True)
 
 
+def create_vocab(text):
+    unique_chars = list(set(text))
+    vocab_size = len(unique_chars)
+    vocab_index_dict = {}
+    index_vocab_dict = {}
+    for i, char in enumerate(unique_chars):
+        vocab_index_dict[char] = i
+        index_vocab_dict[i] = char
+    return vocab_index_dict, index_vocab_dict, vocab_size
+
+
+def load_vocab(vocab_file):
+    with open(vocab_file, 'r') as f:
+        vocab_index_dict = json.load(f)
+    index_vocab_dict = {}
+    vocab_size = 0
+    for char, index in vocab_index_dict.iteritems():
+        index_vocab_dict[index] = char
+        vocab_size += 1
+    return vocab_index_dict, index_vocab_dict, vocab_size
+
+
+def save_vocab(vocab_index_dict, vocab_file):
+    with open(vocab_file, 'w') as f:
+        json.dump(vocab_index_dict, f, indent=2, sort_keys=True)
+        
 if __name__ == '__main__':
     main()

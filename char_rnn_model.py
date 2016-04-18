@@ -298,7 +298,7 @@ def char2id(char, vocab_index_dict):
   try:
     return vocab_index_dict[char]
   except KeyError:
-    logging.info('Unexpected char %s' % char)
+    logging.info('Unexpected char %s', char)
     return 0
 
 
