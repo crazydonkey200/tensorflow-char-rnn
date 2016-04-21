@@ -42,9 +42,9 @@ def main():
                         help='number of epochs')
     parser.add_argument('--batch_size', type=int, default=20,
                         help='minibatch size')
-    parser.add_argument('--train_frac', type=int, default=0.9,
+    parser.add_argument('--train_frac', type=float, default=0.9,
                         help='fraction of data used for training.')
-    parser.add_argument('--valid_frac', type=int, default=0.05,
+    parser.add_argument('--valid_frac', type=float, default=0.05,
                         help='fraction of data used for validation.')
     # test_frac is computed as (1 - train_frac - valid_frac).
     
