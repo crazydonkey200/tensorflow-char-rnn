@@ -1,4 +1,5 @@
 import argparse
+import codecs
 import json
 import logging
 import os
@@ -21,6 +22,9 @@ def main():
                         default='',
                         help=('file containing the vocabulary, if not given,'
                               ' will be created.'))
+    parser.add_argument('--encoding', type=str,
+                        default='utf-8',
+                        help='the encoding of the data file.')
 
     # Parameters for saving models.
     parser.add_argument('--output_dir', type=str, default='output',
@@ -174,6 +178,7 @@ def main():
         best_model = result['best_model']
         best_valid_ppl = result['best_valid_ppl']
         args.vocab_file = result['vocab_file']
+        args.encoding = result['encoding']
     else:
         params = {'batch_size': args.batch_size,
                   'num_unrollings': args.num_unrollings,
@@ -187,7 +192,7 @@ def main():
         
     # Read and split data.
     logging.info('Reading data from: %s', args.data_file)
-    with open(args.data_file, 'r') as f:
+    with codecs.open(args.data_file, 'r', encoding=args.encoding) as f:
         text = f.read()
 
     if args.test:
@@ -207,12 +212,16 @@ def main():
     test_text = text[train_size + valid_size:]
 
     if args.vocab_file:
-        vocab_index_dict, index_vocab_dict, vocab_size = load_vocab(args.vocab_file)
+        vocab_index_dict, index_vocab_dict, vocab_size = load_vocab(args.vocab_file, args.encoding)
     else:
         logging.info('Creating vocabulary')
         vocab_index_dict, index_vocab_dict, vocab_size = create_vocab(text)
-        vocab_file = os.path.splitext(args.data_file)[0] + '_vocab.json'
-        save_vocab(vocab_index_dict, vocab_file)
+        if args.test:
+            middle = '_test'
+        else:
+            middle = ''
+        vocab_file = os.path.splitext(args.data_file)[0] + middle + '_vocab.json'
+        save_vocab(vocab_index_dict, vocab_file, args.encoding)
         logging.info('Vocabulary is saved in %s', vocab_file)
         args.vocab_file = vocab_file
 
@@ -278,6 +287,7 @@ def main():
     result = {}
     result['params'] = params
     result['vocab_file'] = args.vocab_file
+    result['encoding'] = args.encoding
 
     try:
         # Use try and finally to make sure that intermediate
@@ -371,8 +381,8 @@ def create_vocab(text):
     return vocab_index_dict, index_vocab_dict, vocab_size
 
 
-def load_vocab(vocab_file):
-    with open(vocab_file, 'r') as f:
+def load_vocab(vocab_file, encoding):
+    with codecs.open(vocab_file, 'r', encoding=encoding) as f:
         vocab_index_dict = json.load(f)
     index_vocab_dict = {}
     vocab_size = 0
@@ -382,8 +392,8 @@ def load_vocab(vocab_file):
     return vocab_index_dict, index_vocab_dict, vocab_size
 
 
-def save_vocab(vocab_index_dict, vocab_file):
-    with open(vocab_file, 'w') as f:
+def save_vocab(vocab_index_dict, vocab_file, encoding):
+    with codecs.open(vocab_file, 'w', encoding=encoding) as f:
         json.dump(vocab_index_dict, f, indent=2, sort_keys=True)
         
 if __name__ == '__main__':
