@@ -35,7 +35,7 @@ It will install all the necessary packages for you.
 
 ## Quickstart
 
-To train on tiny_shakespeare with default settings (this might take a while):
+To train on tiny shakespeare corpus (included in data/) with default settings (this might take a while):
 ```bash
 python char_rnn.py --data_file=data/tiny_shakespeare.txt
 ```
