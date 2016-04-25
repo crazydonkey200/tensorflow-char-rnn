@@ -157,9 +157,6 @@ class CharRNN(object):
 
       self.train_op = optimizer.apply_gradients(zip(grads, tvars),
                                                 global_step=self.global_step)
-      self.saver = tf.train.Saver(name='checkpoint_saver')
-      self.best_model_saver = tf.train.Saver(name='best_model_saver')
-
       
   def run_epoch(self, session, data_size, batch_generator, is_training,
                 verbose=0, freq=10, summary_writer=None, debug=False):

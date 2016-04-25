@@ -137,7 +137,7 @@ def main():
     args.save_best_model = os.path.join(args.output_dir, 'best_model/model')
     args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/')
     args.vocab_file = ''
-    
+
     # Create necessary directories.
     if args.init_from_dir:
         args.output_dir = args.init_from_dir
@@ -256,13 +256,15 @@ def main():
         tf.get_variable_scope().reuse_variables()
         with tf.name_scope('evaluation'):
             valid_model = CharRNN(is_training=False, **params)
+            saver = tf.train.Saver(name='checkpoint_saver')
+            best_model_saver = tf.train.Saver(name='best_model_saver')
 
     if args.sample:
         if args.seed >= 0:
             np.random.seed(args.seed)
         # Sampling a sequence 
         with tf.Session(graph=graph) as session:
-            train_model.saver.restore(session, args.init_model)
+            saver.restore(session, args.init_model)
             sample = valid_model.sample_seq(session, args.length, args.start_text,
                                             vocab_index_dict, index_vocab_dict,
                                             max_prob=args.max_prob)
@@ -273,7 +275,7 @@ def main():
         example_batches = BatchGenerator(args.example_text, 1, 1, vocab_size,
                                          vocab_index_dict, index_vocab_dict)
         with tf.Session(graph=graph) as session:
-            train_model.saver.restore(session, args.init_model)
+            saver.restore(session, args.init_model)
             ppl = valid_model.run_epoch(session, len(args.example_text),
                                         example_batches,
                                         is_training=False)[0]
@@ -306,7 +308,7 @@ def main():
 
             # load a saved model or start from random initialization.
             if args.init_model:
-                train_model.saver.restore(session, args.init_model)
+                saver.restore(session, args.init_model)
             else:
                 tf.initialize_all_variables().run()
             for i in range(args.num_epochs):
@@ -325,7 +327,7 @@ def main():
                 train_writer.add_summary(train_summary_str, global_step)
                 train_writer.flush()
                 # save model
-                saved_path = train_model.saver.save(session, args.save_model,
+                saved_path = saver.save(session, args.save_model,
                                                     global_step=train_model.global_step)
                 logging.info('model saved in %s\n', saved_path)
                 logging.info('Evaluate on validation set')
@@ -338,7 +340,7 @@ def main():
                     freq=args.progress_freq)
                 # save and update best model
                 if (not best_model) or (valid_ppl < best_valid_ppl):
-                    best_model = train_model.best_model_saver.save(
+                    best_model = best_model_saver.save(
                         session,
                         args.save_best_model,
                         global_step=train_model.global_step)
@@ -356,7 +358,7 @@ def main():
             logging.info('best model is saved in %s', best_model)
             logging.info('best validation ppl is %f\n', best_valid_ppl)
             logging.info('Evaluate the best model on test set')
-            train_model.saver.restore(session, best_model)
+            saver.restore(session, best_model)
             test_ppl, _, _ = valid_model.run_epoch(session, test_size, test_batches,
                                                    is_training=False,
                                                    verbose=args.verbose,
