@@ -298,6 +298,11 @@ def main():
                 result['best_model'] = best_model
                 # Convert to float because numpy.float is not json serializable.
                 result['best_valid_ppl'] = float(best_valid_ppl)
+                result_path = os.path.join(args.output_dir, 'result.json')
+                if os.path.exists(result_path):
+                    os.remove(result_path)
+                with open(result_path, 'w') as f:
+                    json.dump(result, f, indent=2, sort_keys=True)
 
             logging.info('latest model is saved in %s', saved_path)
             logging.info('best model is saved in %s', best_model)
