@@ -23,9 +23,13 @@ class CharRNN(object):
     self.max_grad_norm = max_grad_norm
     self.num_layers = num_layers
     self.embedding_size = embedding_size
+    if embedding_size <= 0:
+      input_size = vocab_size
+    else:
+      input_size = embedding_size
     self.model_size = (embedding_size * vocab_size + # embedding parameters
                        # lstm parameters
-                       4 * hidden_size * (hidden_size + embedding_size + 1) +
+                       4 * hidden_size * (hidden_size + input_size + 1) +
                        # softmax parameters
                        vocab_size * (hidden_size + 1) +
                        # multilayer lstm parameters for extra layers.
@@ -43,7 +47,7 @@ class CharRNN(object):
 
     # Create multilayer LSTM cell.
     lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_size,
-                                             input_size=self.embedding_size,
+                                             input_size=input_size,
                                              forget_bias=0.0)
 
     lstm_cells = [lstm_cell]
@@ -68,14 +72,17 @@ class CharRNN(object):
 
     # Embeddings layers.
     with tf.name_scope('embedding_layer'):
-      with tf.device("/cpu:0"):
-        self.embedding = tf.get_variable("embedding",
-                                         [self.vocab_size, self.embedding_size])
-        inputs = tf.nn.embedding_lookup(self.embedding, self.input_data)
+      if embedding_size > 0:
+        with tf.device("/cpu:0"):
+          self.embedding = tf.get_variable("embedding",
+                                           [self.vocab_size, self.embedding_size])
+      else:
+        self.embedding = tf.constant(np.eye(self.vocab_size), dtype=tf.float32)
+      inputs = tf.nn.embedding_lookup(self.embedding, self.input_data)
 
     with tf.name_scope('slice_inputs'):
       # Slice inputs into a list of shape [batch_size, 1] data colums.
-      sliced_inputs = [tf.reshape(input_, [self.batch_size, self.embedding_size])
+      sliced_inputs = [tf.reshape(input_, [self.batch_size, input_size])
                        for input_ in tf.split(1, self.num_unrollings, inputs)]
     
     # print(sliced_inputs[0].get_shape())
