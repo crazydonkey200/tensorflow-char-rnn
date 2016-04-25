@@ -37,7 +37,8 @@ python train.py --data_file=data/tiny_shakespeare.txt --num_epochs=10 --test
 This will train char-rnn on the first 1000 characters of the tiny shakespeare copus. The final train/valid/test perplexity should all be lower than 30. 
 
 # Usage
-- `train.py` is the main script for training and sampling. 
+- `train.py` is the script for training.
+- `sample.py` is the script for sampling.
 - `char_rnn_model.py` implements the Char-RNN model.
 
 ## Training
@@ -64,7 +65,7 @@ The output folder layout:
 ## Sampling
 To sample from the best model of an experiment (with a given start_text and length):
 ```bash
-python train.py --sample --init_from_dir=your-output-folder --start_text="The meaning of life is" --length=100
+python sample.py --init_from_dir=your-output-folder --start_text="The meaning of life is" --length=100
 ```
 
 ## Visualization
@@ -77,7 +78,7 @@ tensorboard --logdir=your-output-folder/tensorboard_log
 
 Then navigate your browser to [http://localhost:6006](http://localhost:6006) to view. You can also specify the port using `--port=your-port-number`. 
 
-## Continuing a experiment
+## Continuing an experiment
 To continue a finished or interrupted experiment, run:
 ```bash
 python train.py --data_file=your-data-file --init_from_dir=your-output-folder
