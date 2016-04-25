@@ -31,19 +31,19 @@ It will also install other necessary packages (including NumPy) for you.
 
 If the installation finishes with no error, quickly test your installation by running:
 ```bash
-python char_rnn.py --data_file=data/tiny_shakespeare.txt --num_epochs=10 --test
+python train.py --data_file=data/tiny_shakespeare.txt --num_epochs=10 --test
 ```
 
 This will train char-rnn on the first 1000 characters of the tiny shakespeare copus. The final train/valid/test perplexity should all be lower than 30. 
 
 # Usage
-- `char_rnn.py` is the main script for training and sampling. 
+- `train.py` is the main script for training and sampling. 
 - `char_rnn_model.py` implements the Char-RNN model.
 
 ## Training
 To train on tiny shakespeare corpus (included in data/) with default settings (this might take a while):
 ```bash
-python char_rnn.py --data_file=data/tiny_shakespeare.txt
+python train.py --data_file=data/tiny_shakespeare.txt
 ```
 
 All the output of this experiment will be saved in a folder (default to `output/`, you can specify the folder name using `--output_dir=your-output-folder`). 
@@ -64,7 +64,7 @@ The output folder layout:
 ## Sampling
 To sample from the best model of an experiment (with a given start_text and length):
 ```bash
-python char_rnn.py --sample --init_from_dir=your-output-folder --start_text="The meaning of life is" --length=100
+python train.py --sample --init_from_dir=your-output-folder --start_text="The meaning of life is" --length=100
 ```
 
 ## Visualization
@@ -80,17 +80,17 @@ Then navigate your browser to [http://localhost:6006](http://localhost:6006) to 
 ## Continuing a experiment
 To continue a finished or interrupted experiment, run:
 ```bash
-python char_rnn.py --data_file=your-data-file --init_from_dir=your-output-folder
+python train.py --data_file=your-data-file --init_from_dir=your-output-folder
 ```
 
 
 ## Hyperparameter tuning
 
-`char_rnn.py` provides a list of hyperparameters you can tune.
+`train.py` provides a list of hyperparameters you can tune.
 
 To see the list of all hyperparameters, run:
 ```bash
-python char_rnn.py --help
+python train.py --help
 ```
 
 # License
