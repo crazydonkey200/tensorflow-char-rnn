@@ -31,7 +31,7 @@ def main():
     # Parameters to configure the neural network.
     parser.add_argument('--hidden_size', type=int, default=128,
                         help='size of RNN hidden state vector')
-    parser.add_argument('--embedding_size', type=int, default=50,
+    parser.add_argument('--embedding_size', type=int, default=0,
                         help='size of character embeddings')
     parser.add_argument('--num_layers', type=int, default=2,
                         help='number of layers in the RNN')
