@@ -93,3 +93,7 @@ To see the list of all hyperparameters, run:
 ```bash
 python char_rnn.py --help
 ```
+
+# License
+Apache 2.0
+
