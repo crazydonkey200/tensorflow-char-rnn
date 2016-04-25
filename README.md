@@ -75,7 +75,7 @@ First run:
 tensorboard --logdir=your-output-folder/tensorboard_log
 ```
 
-Then navigate your browser to [localhost:6006]() to view. You can also specify the port using `--port=your-port-number`. 
+Then navigate your browser to [http://localhost:6006]() to view. You can also specify the port using `--port=your-port-number`. 
 
 ## Continuing a experiment
 To continue a finished or interrupted experiment, run:
