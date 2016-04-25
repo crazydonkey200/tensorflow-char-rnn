@@ -35,18 +35,31 @@ It will install all the necessary packages for you.
 
 ## Quickstart
 
+### Training
 To train on tiny shakespeare corpus (included in data/) with default settings (this might take a while):
 ```bash
 python char_rnn.py --data_file=data/tiny_shakespeare.txt
 ```
 
-All the output of this experiment (results, latest model, best model, experiment log and tensorboard log) will be saved in a folder (default to output/, you can specify the folder name using `--output_dir=your-output-folder`). 
+All the output of this experiment will be saved in a folder (default to output/, you can specify the folder name using `--output_dir=your-output-folder`). The experiment log will be printed to stdout by default. To direct the log to a file instead, use `--log_to_file` (the experiment log will be saved in `your-output-folder/experiment_log.txt`).
 
+The output folder layout: 
+```
+  your-output-folder
+    ├── result.json             # results (best validation and test perplexity) and experiment parameters.
+    ├── experiment_log.txt      # Your experiment log if you used --log_to_file in training.
+    ├── tensorboard_log         # Folder containing Logs for Tensorboard visualization.
+    ├── best_model              # Folder containing saved best model (based on validation set perplexity)
+    ├── saved_model             # Folder containing saved latest models (for continuing training).
+```
+
+### Sampling
 To sample from the best model of an experiment (with a given start_text and length):
 ```bash
 python char_rnn.py --sample --init_from_dir=your-output-folder --start_text="The meaning of life is" --length=100
 ```
 
+### Visualization
 To use Tensorboard (a visualization tool in TensorFlow) to [visualize the learning] (https://www.tensorflow.org/versions/r0.8/how_tos/summaries_and_tensorboard/index.html#tensorboard-visualizing-learning) (the "events" tab) and [the computation graph](https://www.tensorflow.org/versions/r0.8/how_tos/graph_viz/index.html#tensorboard-graph-visualization) (the "graph" tab).
 
 First run:
@@ -55,6 +68,12 @@ tensorboard --logdir=your-output-folder/tensorboard_log
 ```
 
 Then navigate your browser to `localhost:6006` to view. You can also specify the port using `--port=your-port-number`. 
+
+### Continue a finished or interrupted experiment
+To continue a finished or interrupted experiment, run:
+```bash
+python char_rnn.py --data_file=your-data-file --init_from_dir=your-output-folder
+```
 
 
 ## Hyperparameter tuning
