@@ -10,7 +10,7 @@ A TensorFlow implementation of Andrej Karpathy's [Char-RNN](https://github.com/k
 
 Follow the instructions on [TensorFlow official website](https://www.tensorflow.org/versions/r0.8/get_started/os_setup.html#download-and-setup) to install TensorFlow. 
 
-I recommond using their pip installation:
+If you use their pip installation:
 
 ```bash
 # Ubuntu/Linux 64-bit, CPU only:
@@ -25,7 +25,7 @@ $ sudo easy_install --upgrade six
 $ sudo pip install --upgrade https://storage.googleapis.com/tensorflow/mac/tensorflow-0.8.0-py2-none-any.whl
 ```
 
-It will install all the necessary packages for you. 
+It will also install other necessary packages (including NumPy) for you. 
 
 # Test
 
