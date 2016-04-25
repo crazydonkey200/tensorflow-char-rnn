@@ -62,6 +62,8 @@ The output folder layout:
     ├── saved_model             # Folder containing saved latest models (for continuing training).
 ```
 
+Note: `train.py` assume the data file is using utf-8 encoding by default, use `--encoding=your-encoding` to specify the encoding if your data file cannot be decoded using utf-8.
+
 ## Sampling
 To sample from the best model of an experiment (with a given start_text and length):
 ```bash
