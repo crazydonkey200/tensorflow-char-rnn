@@ -84,40 +84,9 @@ def main():
                         default=np.Inf,
                         help=('current valid perplexity'))
     
-    # Parameters for continuing training.
+    # Parameters for using saved best models.
     parser.add_argument('--init_from_dir', type=str, default='',
                         help='continue from the outputs in the given directory')
-
-    # Parameters for sampling.
-    parser.add_argument('--sample', dest='sample', action='store_true',
-                        help='sample new text that start with start_text')
-    parser.set_defaults(sample=False)
-
-    parser.add_argument('--max_prob', dest='max_prob', action='store_true',
-                        help='always pick the most probable one in sampling')
-
-    parser.set_defaults(max_prob=False)
-    
-    parser.add_argument('--start_text', type=str,
-                        default='The meaning of life is ',
-                        help='the text to start with')
-
-    parser.add_argument('--length', type=int,
-                        default=100,
-                        help='length of sampled sequence')
-
-    parser.add_argument('--seed', type=int,
-                        default=-1,
-                        help=('seed for sampling to replicate results, '
-                              'an integer between 0 and 4294967295.'))
-
-    # Parameters for evaluation (computing perplexity of given text).
-    parser.add_argument('--evaluate', dest='evaluate', action='store_true',
-                        help='compute the perplexity of given text')
-    parser.set_defaults(evaluate=False)
-    parser.add_argument('--example_text', type=str,
-                        default='The meaning of life is 42.',
-                        help='compute the perplexity of given example text.')
 
     # Parameters for debugging.
     parser.add_argument('--debug', dest='debug', action='store_true',
@@ -258,30 +227,6 @@ def main():
             valid_model = CharRNN(is_training=False, **params)
             saver = tf.train.Saver(name='checkpoint_saver')
             best_model_saver = tf.train.Saver(name='best_model_saver')
-
-    if args.sample:
-        if args.seed >= 0:
-            np.random.seed(args.seed)
-        # Sampling a sequence 
-        with tf.Session(graph=graph) as session:
-            saver.restore(session, args.init_model)
-            sample = valid_model.sample_seq(session, args.length, args.start_text,
-                                            vocab_index_dict, index_vocab_dict,
-                                            max_prob=args.max_prob)
-            print('\nstart text is:\n%s' % args.start_text)
-            print('sampled text is:\n%s' % sample)
-        return sample
-    elif args.evaluate:
-        example_batches = BatchGenerator(args.example_text, 1, 1, vocab_size,
-                                         vocab_index_dict, index_vocab_dict)
-        with tf.Session(graph=graph) as session:
-            saver.restore(session, args.init_model)
-            ppl = valid_model.run_epoch(session, len(args.example_text),
-                                        example_batches,
-                                        is_training=False)[0]
-            print('\nexample text is: %s' % args.example_text)
-            print('its perplexity is: %s' % ppl)
-        return ppl            
 
     logging.info('Start training')
     logging.info('model size (number of parameters): %s', train_model.model_size)
