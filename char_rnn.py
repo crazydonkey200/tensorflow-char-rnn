@@ -147,7 +147,7 @@ def main():
 
     # Specify logging config.
     if args.log_to_file:
-        args.log_file = os.path.join(args.output_dir, 'experiment_log')
+        args.log_file = os.path.join(args.output_dir, 'experiment_log.txt')
     else:
         args.log_file = 'stdout'
 
