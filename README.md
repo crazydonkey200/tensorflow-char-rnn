@@ -4,11 +4,9 @@ A TensorFlow implementation of Andrej Karpathy's [Char-RNN](https://github.com/k
 # Installation
 
 ## Dependencies
-Python 2.7
-
-TensorFlow >= 0.7.0
-
-NumPy >= 1.10.0
+- Python 2.7
+- TensorFlow >= 0.7.0
+- NumPy >= 1.10.0
 
 Follow the instructions on [TensorFlow official website](https://www.tensorflow.org/versions/r0.8/get_started/os_setup.html#download-and-setup) to install TensorFlow. 
 
