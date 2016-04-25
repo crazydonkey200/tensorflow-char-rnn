@@ -106,6 +106,11 @@ def main():
                         default=100,
                         help='length of sampled sequence')
 
+    parser.add_argument('--seed', type=int,
+                        default=-1,
+                        help=('seed for sampling to replicate results, '
+                              'an integer between 0 and 4294967295.'))
+
     # Parameters for evaluation (computing perplexity of given text).
     parser.add_argument('--evaluate', dest='evaluate', action='store_true',
                         help='compute the perplexity of given text')
@@ -253,6 +258,8 @@ def main():
             valid_model = CharRNN(is_training=False, **params)
 
     if args.sample:
+        if args.seed >= 0:
+            np.random.seed(args.seed)
         # Sampling a sequence 
         with tf.Session(graph=graph) as session:
             train_model.saver.restore(session, args.init_model)
