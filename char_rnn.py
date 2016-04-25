@@ -18,10 +18,7 @@ def main():
     parser.add_argument('--data_file', type=str,
                         default='data/tiny_shakespeare.txt',
                         help='data file')
-    parser.add_argument('--vocab_file', type=str,
-                        default='',
-                        help=('file containing the vocabulary, if not given,'
-                              ' will be created.'))
+
     parser.add_argument('--encoding', type=str,
                         default='utf-8',
                         help='the encoding of the data file.')
@@ -134,7 +131,8 @@ def main():
     args.save_model = os.path.join(args.output_dir, 'save_model/model')
     args.save_best_model = os.path.join(args.output_dir, 'best_model/model')
     args.tb_log_dir = os.path.join(args.output_dir, 'tensorboard_log/')
-
+    args.vocab_file = ''
+    
     # Create necessary directories.
     if args.init_from_dir:
         args.output_dir = args.init_from_dir
@@ -177,8 +175,8 @@ def main():
         args.init_model = result['latest_model']
         best_model = result['best_model']
         best_valid_ppl = result['best_valid_ppl']
-        args.vocab_file = result['vocab_file']
         args.encoding = result['encoding']
+        args.vocab_file = os.path.join(args.init_from_dir, 'vocab.json')
     else:
         params = {'batch_size': args.batch_size,
                   'num_unrollings': args.num_unrollings,
@@ -216,18 +214,13 @@ def main():
     else:
         logging.info('Creating vocabulary')
         vocab_index_dict, index_vocab_dict, vocab_size = create_vocab(text)
-        if args.test:
-            middle = '_test'
-        else:
-            middle = ''
-        vocab_file = os.path.splitext(args.data_file)[0] + middle + '_vocab.json'
+        vocab_file = os.path.join(args.output_dir, 'vocab.json')
         save_vocab(vocab_index_dict, vocab_file, args.encoding)
         logging.info('Vocabulary is saved in %s', vocab_file)
         args.vocab_file = vocab_file
 
     params['vocab_size'] = vocab_size
     logging.info('vocab size: %d', vocab_size)
-
 
     # Create batch generators.
     batch_size = params['batch_size']
