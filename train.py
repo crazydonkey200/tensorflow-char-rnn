@@ -37,7 +37,9 @@ def main():
                         help='number of layers in the RNN')
     parser.add_argument('--num_unrollings', type=int, default=10,
                         help='number of unrolling steps.')
-
+    parser.add_argument('--model', type=str, default='lstm',
+                        help='which model to use (rnn, lstm or gru).')
+    
     # Parameters to control the training.
     parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
@@ -158,7 +160,8 @@ def main():
                   'max_grad_norm': args.max_grad_norm,
                   'embedding_size': args.embedding_size,
                   'num_layers': args.num_layers,
-                  'learning_rate': args.learning_rate}
+                  'learning_rate': args.learning_rate,
+                  'model': args.model}
         best_model = ''
     logging.info('parameters are:\n%s', params)
         

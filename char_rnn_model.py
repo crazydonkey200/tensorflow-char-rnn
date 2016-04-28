@@ -12,7 +12,7 @@ class CharRNN(object):
   
   def __init__(self, is_training, batch_size, num_unrollings, vocab_size, 
                hidden_size, max_grad_norm, embedding_size, num_layers,
-               learning_rate):
+               learning_rate, model):
     self.batch_size = batch_size
     self.num_unrollings = num_unrollings
     if not is_training:
@@ -23,13 +23,14 @@ class CharRNN(object):
     self.max_grad_norm = max_grad_norm
     self.num_layers = num_layers
     self.embedding_size = embedding_size
+    self.model = model
     if embedding_size <= 0:
-      input_size = vocab_size
+      self.input_size = vocab_size
     else:
-      input_size = embedding_size
+      self.input_size = embedding_size
     self.model_size = (embedding_size * vocab_size + # embedding parameters
                        # lstm parameters
-                       4 * hidden_size * (hidden_size + input_size + 1) +
+                       4 * hidden_size * (hidden_size + self.input_size + 1) +
                        # softmax parameters
                        vocab_size * (hidden_size + 1) +
                        # multilayer lstm parameters for extra layers.
@@ -45,29 +46,38 @@ class CharRNN(object):
                                   [self.batch_size, self.num_unrollings],
                                   name='targets')
 
-    # Create multilayer LSTM cell.
-    lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_size,
-                                             input_size=input_size,
-                                             forget_bias=0.0)
+    if self.model == 'rnn':
+      cell_fn = tf.nn.rnn_cell.BasicRNNCell
+    elif self.model == 'lstm':
+      cell_fn = tf.nn.rnn_cell.BasicLSTMCell
+    elif self.model == 'gru':
+      cell_fn = tf.nn.rnn_cell.GRUCell
 
-    lstm_cells = [lstm_cell]
+    params = {'input_size': self.input_size}
+    if self.model == 'lstm':
+      # add bias to forget gate in lstm.
+      params['forget_bias'] = 0.0
+    # Create multilayer LSTM cell.
+    cell = cell_fn(self.hidden_size,
+                   **params)
+
+    cells = [cell]
+    params['input_size'] = self.hidden_size
     # more explicit way to create cells for MultiRNNCell than
     # [higher_layer_lstm_cell] * (self.num_layers - 1)
     for i in range(self.num_layers-1):
-      higher_layer_lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(
-        self.hidden_size,
-        input_size=self.hidden_size,
-        forget_bias=0.0)
-      lstm_cells.append(higher_layer_lstm_cell)
+      higher_layer_cell = cell_fn(self.hidden_size,
+                                  **params)
+      cells.append(higher_layer_cell)
 
-    cell = tf.nn.rnn_cell.MultiRNNCell(lstm_cells)
+    multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
 
     with tf.name_scope('initial_state'):
       # zero_state is used to compute the intial state for cell.
-      self.zero_state = cell.zero_state(self.batch_size, tf.float32)
+      self.zero_state = multi_cell.zero_state(self.batch_size, tf.float32)
       # Placeholder to feed in initial state.
       self.initial_state = tf.placeholder(tf.float32,
-                                          [self.batch_size, cell.state_size],
+                                          [self.batch_size, multi_cell.state_size],
                                           'initial_state')
 
     # Embeddings layers.
@@ -82,12 +92,12 @@ class CharRNN(object):
 
     with tf.name_scope('slice_inputs'):
       # Slice inputs into a list of shape [batch_size, 1] data colums.
-      sliced_inputs = [tf.reshape(input_, [self.batch_size, input_size])
+      sliced_inputs = [tf.reshape(input_, [self.batch_size, self.input_size])
                        for input_ in tf.split(1, self.num_unrollings, inputs)]
     
     # print(sliced_inputs[0].get_shape())
     # Copy cell to do unrolling and collect outputs.
-    outputs, final_state = rnn.rnn(cell, sliced_inputs, initial_state=self.initial_state)
+    outputs, final_state = rnn.rnn(multi_cell, sliced_inputs, initial_state=self.initial_state)
     self.final_state = final_state
 
     with tf.name_scope('flatten_ouputs'):
@@ -105,13 +115,10 @@ class CharRNN(object):
       logits = tf.matmul(flat_outputs, softmax_w) + softmax_b
       self.probs = tf.nn.softmax(logits)
 
-
     with tf.name_scope('loss'):
       # Compute mean cross entropy loss for each output.
       loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, flat_targets)
-      
       self.mean_loss = tf.reduce_sum(loss) / (self.batch_size * self.num_unrollings)
-
 
     with tf.name_scope('loss_monitor'):
       # Count the number of elements and the sum of mean_loss
@@ -131,13 +138,6 @@ class CharRNN(object):
         self.ppl = tf.exp(self.average_loss)
 
       # Monitor the loss.
-      # if is_training:
-      #   loss_summary_name = "average training loss"
-      #   ppl_summary_name = "training perplexity"
-      # else:
-      #   loss_summary_name = "average evaluation loss"
-      #   ppl_summary_name = "evaluation perplexity"
-      
       loss_summary_name = "average loss"
       ppl_summary_name = "perplexity"
   
