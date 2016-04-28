@@ -208,7 +208,7 @@ class CharRNN(object):
                      (step + 1) * self.batch_size * self.num_unrollings /
                      (time.time() - start_time), lr)
 
-    logging.info("final ppl: %.3f, speed: %.0f wps, learning_rate: %f",
+    logging.info("Perplexity: %.3f, speed: %.0f words per sec, learning_rate: %f",
                  ppl, (step + 1) * self.batch_size * self.num_unrollings /
                  (time.time() - start_time), lr)
     return ppl, summary_str, global_step

@@ -137,8 +137,10 @@ def main():
                             level=logging.INFO,
                             datefmt='%I:%M:%S')
 
-    print('all final and intermediate outputs will be stored in %s' % args.output_dir)
-    print('all information will be logged to %s' % args.log_file)
+    print('=' * 60)
+    print('All final and intermediate outputs will be stored in %s/' % args.output_dir)
+    print('All information will be logged to %s' % args.log_file)
+    print('=' * 60 + '\n')
     
     if args.debug:
         logging.info('args are:\n%s', args)
@@ -163,8 +165,8 @@ def main():
                   'learning_rate': args.learning_rate,
                   'model': args.model}
         best_model = ''
-    logging.info('parameters are:\n%s', params)
-        
+    logging.info('Parameters are:\n%s\n', json.dumps(params, sort_keys=True, indent=4))
+
     # Read and split data.
     logging.info('Reading data from: %s', args.data_file)
     with codecs.open(args.data_file, 'r', encoding=args.encoding) as f:
@@ -172,11 +174,11 @@ def main():
 
     if args.test:
         text = text[:1000]
-    logging.info('number of characters: %s', len(text))
+    logging.info('Number of characters: %s', len(text))
 
     if args.debug:
         n = 10        
-        logging.info('first %d characters: %s', n, text[:n])
+        logging.info('First %d characters: %s', n, text[:n])
 
     logging.info('Creating train, valid, test split')
     train_size = int(args.train_frac * len(text))
@@ -197,7 +199,7 @@ def main():
         args.vocab_file = vocab_file
 
     params['vocab_size'] = vocab_size
-    logging.info('vocab size: %d', vocab_size)
+    logging.info('Vocab size: %d', vocab_size)
 
     # Create batch generators.
     batch_size = params['batch_size']
@@ -231,8 +233,8 @@ def main():
             saver = tf.train.Saver(name='checkpoint_saver')
             best_model_saver = tf.train.Saver(name='best_model_saver')
 
-    logging.info('Start training')
-    logging.info('model size (number of parameters): %s', train_model.model_size)
+    logging.info('Model size (number of parameters): %s\n', train_model.model_size)
+    logging.info('Start training\n')
 
     result = {}
     result['params'] = params
@@ -260,8 +262,7 @@ def main():
             else:
                 tf.initialize_all_variables().run()
             for i in range(args.num_epochs):
-                logging.info('\n')
-                logging.info('Epoch %d\n', i)
+                logging.info('=' * 20 + ' Epoch %d ' + '=' * 30 + '\n', i)
                 logging.info('Training on training set')
                 # training step
                 ppl, train_summary_str, global_step = train_model.run_epoch(
@@ -277,7 +278,7 @@ def main():
                 # save model
                 saved_path = saver.save(session, args.save_model,
                                                     global_step=train_model.global_step)
-                logging.info('model saved in %s\n', saved_path)
+                logging.info('Latest model saved in %s\n', saved_path)
                 logging.info('Evaluate on validation set')
                 valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
                     session,
@@ -295,8 +296,8 @@ def main():
                     best_valid_ppl = valid_ppl
                 valid_writer.add_summary(valid_summary_str, global_step)
                 valid_writer.flush()
-                logging.info('best model is saved in %s', best_model)
-                logging.info('best validation ppl is %f\n', best_valid_ppl)
+                logging.info('Best model is saved in %s', best_model)
+                logging.info('Best validation ppl is %f\n', best_valid_ppl)
                 result['latest_model'] = saved_path
                 result['best_model'] = best_model
                 # Convert to float because numpy.float is not json serializable.
@@ -307,9 +308,9 @@ def main():
                 with open(result_path, 'w') as f:
                     json.dump(result, f, indent=2, sort_keys=True)
 
-            logging.info('latest model is saved in %s', saved_path)
-            logging.info('best model is saved in %s', best_model)
-            logging.info('best validation ppl is %f\n', best_valid_ppl)
+            logging.info('Latest model is saved in %s', saved_path)
+            logging.info('Best model is saved in %s', best_model)
+            logging.info('Best validation ppl is %f\n', best_valid_ppl)
             logging.info('Evaluate the best model on test set')
             saver.restore(session, best_model)
             test_ppl, _, _ = valid_model.run_epoch(session, test_size, test_batches,

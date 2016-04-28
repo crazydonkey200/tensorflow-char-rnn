@@ -79,8 +79,8 @@ def main():
             ppl = valid_model.run_epoch(session, len(args.example_text),
                                         example_batches,
                                         is_training=False)[0]
-            print('example text is: %s' % args.example_text)
-            print('its perplexity is: %s' % ppl)
+            print('Example text is: %s' % args.example_text)
+            print('Perplexity is: %s' % ppl)
     else:
         if args.seed >= 0:
             np.random.seed(args.seed)
@@ -90,8 +90,7 @@ def main():
             sample = valid_model.sample_seq(session, args.length, args.start_text,
                                             vocab_index_dict, index_vocab_dict,
                                             max_prob=args.max_prob)
-            print('start text is:\n%s' % args.start_text)
-            print('sampled text is:\n%s' % sample)
+            print('Sampled text is:\n%s' % sample)
         return sample
             
 
