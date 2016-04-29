@@ -203,14 +203,14 @@ class CharRNN(object):
       
       ppl = np.exp(average_loss)
       if (verbose > 0) and ((step+1) % freq == 0):
-        logging.info("%.1f%%, step:%d, perplexity: %.3f, speed: %.0f wps, learning_rate: %f",
+        logging.info("%.1f%%, step:%d, perplexity: %.3f, speed: %.0f words",
                      (step + 1) * 1.0 / epoch_size * 100, step, ppl,
                      (step + 1) * self.batch_size * self.num_unrollings /
-                     (time.time() - start_time), lr)
+                     (time.time() - start_time))
 
-    logging.info("Perplexity: %.3f, speed: %.0f words per sec, learning_rate: %f",
+    logging.info("Perplexity: %.3f, speed: %.0f words per sec",
                  ppl, (step + 1) * self.batch_size * self.num_unrollings /
-                 (time.time() - start_time), lr)
+                 (time.time() - start_time))
     return ppl, summary_str, global_step
 
   def sample_seq(self, session, length, start_text, vocab_index_dict,

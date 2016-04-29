@@ -262,7 +262,7 @@ def main():
             else:
                 tf.initialize_all_variables().run()
             for i in range(args.num_epochs):
-                logging.info('=' * 20 + ' Epoch %d ' + '=' * 30 + '\n', i)
+                logging.info('=' * 19 + ' Epoch %d ' + '=' * 19 + '\n', i)
                 logging.info('Training on training set')
                 # training step
                 ppl, train_summary_str, global_step = train_model.run_epoch(
