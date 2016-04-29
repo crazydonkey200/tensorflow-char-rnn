@@ -95,7 +95,3 @@ To see the list of all hyperparameters, run:
 ```bash
 python train.py --help
 ```
-
-# License
-Apache 2.0
-
