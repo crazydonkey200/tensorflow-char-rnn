@@ -15,12 +15,14 @@ def main():
                         help='continue from the outputs in the given directory')
 
     # Parameters for sampling.
-    parser.add_argument('--sample', dest='sample', action='store_true',
-                        help='sample new text that start with start_text')
-    parser.set_defaults(sample=False)
-
+    parser.add_argument('--temperature', type=float,
+                        default=1.0,
+                        help=('Temperature for sampling from softmax: '
+                              'higher temperature, more random; '
+                              'lower temperature, more greedy.'))
+    
     parser.add_argument('--max_prob', dest='max_prob', action='store_true',
-                        help='always pick the most probable one in sampling')
+                        help='always pick the most probable next character in sampling')
 
     parser.set_defaults(max_prob=False)
     
@@ -89,6 +91,7 @@ def main():
             saver.restore(session, args.init_model)
             sample = valid_model.sample_seq(session, args.length, args.start_text,
                                             vocab_index_dict, index_vocab_dict,
+                                            temperature=args.temperature,
                                             max_prob=args.max_prob)
             print('Sampled text is:\n%s' % sample)
         return sample

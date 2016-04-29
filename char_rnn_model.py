@@ -112,12 +112,12 @@ class CharRNN(object):
     with tf.variable_scope('softmax') as sm_vs:
       softmax_w = tf.get_variable("softmax_w", [hidden_size, vocab_size])
       softmax_b = tf.get_variable("softmax_b", [vocab_size])
-      logits = tf.matmul(flat_outputs, softmax_w) + softmax_b
-      self.probs = tf.nn.softmax(logits)
+      self.logits = tf.matmul(flat_outputs, softmax_w) + softmax_b
+      self.probs = tf.nn.softmax(self.logits)
 
     with tf.name_scope('loss'):
       # Compute mean cross entropy loss for each output.
-      loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, flat_targets)
+      loss = tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, flat_targets)
       self.mean_loss = tf.reduce_sum(loss) / (self.batch_size * self.num_unrollings)
 
     with tf.name_scope('loss_monitor'):
@@ -214,7 +214,7 @@ class CharRNN(object):
     return ppl, summary_str, global_step
 
   def sample_seq(self, session, length, start_text, vocab_index_dict,
-                 index_vocab_dict, max_prob=True):
+                 index_vocab_dict, temperature=1.0, max_prob=True):
 
     state = self.zero_state.eval()
 
@@ -229,10 +229,13 @@ class CharRNN(object):
       x = np.array([[char2id(start_text[-1], vocab_index_dict)]])
 
     for i in range(length):
-      state, probs = session.run([self.final_state,
-                                  self.probs],
-                                 {self.input_data: x,
-                                  self.initial_state: state})
+      state, logits = session.run([self.final_state,
+                                   self.logits],
+                                  {self.input_data: x,
+                                   self.initial_state: state})
+      unnormalized_probs = np.exp((logits - np.min(logits)) / temperature)
+      probs = unnormalized_probs / np.sum(unnormalized_probs)
+
       if max_prob:
         sample = np.argmax(probs[0])
       else:
