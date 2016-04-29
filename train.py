@@ -50,6 +50,8 @@ def main():
     parser.add_argument('--valid_frac', type=float, default=0.05,
                         help='fraction of data used for validation.')
     # test_frac is computed as (1 - train_frac - valid_frac).
+    parser.add_argument('--dropout', type=float, default=0.0,
+                        help='dropout rate, default to 0 (no dropout).')
     
     # Parameters for gradient descent.
     parser.add_argument('--max_grad_norm', type=float, default=5.,
@@ -163,7 +165,8 @@ def main():
                   'embedding_size': args.embedding_size,
                   'num_layers': args.num_layers,
                   'learning_rate': args.learning_rate,
-                  'model': args.model}
+                  'model': args.model,
+                  'dropout': args.dropout}
         best_model = ''
     logging.info('Parameters are:\n%s\n', json.dumps(params, sort_keys=True, indent=4))
 

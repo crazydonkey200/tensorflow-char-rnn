@@ -12,7 +12,7 @@ class CharRNN(object):
   
   def __init__(self, is_training, batch_size, num_unrollings, vocab_size, 
                hidden_size, max_grad_norm, embedding_size, num_layers,
-               learning_rate, model):
+               learning_rate, model, dropout):
     self.batch_size = batch_size
     self.num_unrollings = num_unrollings
     if not is_training:
@@ -24,6 +24,7 @@ class CharRNN(object):
     self.num_layers = num_layers
     self.embedding_size = embedding_size
     self.model = model
+    self.dropout = dropout
     if embedding_size <= 0:
       self.input_size = vocab_size
     else:
@@ -57,19 +58,24 @@ class CharRNN(object):
     if self.model == 'lstm':
       # add bias to forget gate in lstm.
       params['forget_bias'] = 0.0
-    # Create multilayer LSTM cell.
+    # Create multilayer cell.
     cell = cell_fn(self.hidden_size,
                    **params)
 
     cells = [cell]
     params['input_size'] = self.hidden_size
     # more explicit way to create cells for MultiRNNCell than
-    # [higher_layer_lstm_cell] * (self.num_layers - 1)
+    # [higher_layer_cell] * (self.num_layers - 1)
     for i in range(self.num_layers-1):
       higher_layer_cell = cell_fn(self.hidden_size,
                                   **params)
       cells.append(higher_layer_cell)
 
+    if is_training and self.dropout > 0:
+      cells = [tf.nn.rnn_cell.DropoutWrapper(cell,
+                                             output_keep_prob=1.0-self.dropout)
+               for cell in cells]
+        
     multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
 
     with tf.name_scope('initial_state'):
@@ -83,12 +89,14 @@ class CharRNN(object):
     # Embeddings layers.
     with tf.name_scope('embedding_layer'):
       if embedding_size > 0:
-        with tf.device("/cpu:0"):
-          self.embedding = tf.get_variable("embedding",
-                                           [self.vocab_size, self.embedding_size])
+        self.embedding = tf.get_variable("embedding",
+                                         [self.vocab_size, self.embedding_size])
       else:
         self.embedding = tf.constant(np.eye(self.vocab_size), dtype=tf.float32)
+
       inputs = tf.nn.embedding_lookup(self.embedding, self.input_data)
+      if is_training and self.dropout > 0:
+        inputs = tf.nn.dropout(inputs, 1 - self.dropout)
 
     with tf.name_scope('slice_inputs'):
       # Slice inputs into a list of shape [batch_size, 1] data colums.
