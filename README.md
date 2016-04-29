@@ -67,7 +67,7 @@ Note: `train.py` assume the data file is using utf-8 encoding by default, use `-
 ## Sampling
 To sample from the best model of an experiment (with a given start_text and length):
 ```bash
-python sample.py --init_from_dir=your-output-folder --start_text="The meaning of life is" --length=100
+python sample.py --init_dir=your-output-folder --start_text="The meaning of life is" --length=100
 ```
 
 ## Visualization
@@ -83,7 +83,7 @@ Then navigate your browser to [http://localhost:6006](http://localhost:6006) to 
 ## Continuing an experiment
 To continue a finished or interrupted experiment, run:
 ```bash
-python train.py --data_file=your-data-file --init_from_dir=your-output-folder
+python train.py --data_file=your-data-file --init_dir=your-output-folder
 ```
 
 

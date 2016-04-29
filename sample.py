@@ -11,7 +11,7 @@ def main():
     parser = argparse.ArgumentParser()
     
     # Parameters for using saved best models.
-    parser.add_argument('--init_from_dir', type=str, default='',
+    parser.add_argument('--init_dir', type=str, default='',
                         help='continue from the outputs in the given directory')
 
     # Parameters for sampling.
@@ -55,14 +55,14 @@ def main():
     args = parser.parse_args()
 
     # Prepare parameters.
-    with open(os.path.join(args.init_from_dir, 'result.json'), 'r') as f:
+    with open(os.path.join(args.init_dir, 'result.json'), 'r') as f:
         result = json.load(f)
     params = result['params']
     args.init_model = result['latest_model']
     best_model = result['best_model']
     best_valid_ppl = result['best_valid_ppl']
     args.encoding = result['encoding']
-    args.vocab_file = os.path.join(args.init_from_dir, 'vocab.json')
+    args.vocab_file = os.path.join(args.init_dir, 'vocab.json')
     vocab_index_dict, index_vocab_dict, vocab_size = load_vocab(args.vocab_file, args.encoding)
         
     # Create graphs
