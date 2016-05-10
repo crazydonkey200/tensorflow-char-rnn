@@ -12,7 +12,7 @@ class CharRNN(object):
   
   def __init__(self, is_training, batch_size, num_unrollings, vocab_size, 
                hidden_size, max_grad_norm, embedding_size, num_layers,
-               learning_rate, model, dropout):
+               learning_rate, model, dropout=0.0):
     self.batch_size = batch_size
     self.num_unrollings = num_unrollings
     if not is_training:
@@ -176,7 +176,10 @@ class CharRNN(object):
   def run_epoch(self, session, data_size, batch_generator, is_training,
                 verbose=0, freq=10, summary_writer=None, debug=False):
     """Runs the model on the given data for one full pass."""
-    epoch_size = ((data_size // self.batch_size) - 1) // self.num_unrollings
+    # epoch_size = ((data_size // self.batch_size) - 1) // self.num_unrollings
+    epoch_size = data_size // (self.batch_size * self.num_unrollings)
+    if data_size % (self.batch_size * self.num_unrollings) != 0:
+        epoch_size += 1
 
     if verbose > 0:
         logging.info('epoch_size: %d', epoch_size)
