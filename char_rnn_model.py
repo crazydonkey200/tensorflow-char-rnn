@@ -230,7 +230,7 @@ class CharRNN(object):
     state = self.zero_state.eval()
 
     # use start_text to warm up the RNN.
-    if start_text is not None:
+    if start_text is not None and len(start_text) > 0:
       seq = list(start_text)
       for char in start_text[:-1]:
         x = np.array([[char2id(char, vocab_index_dict)]])
@@ -238,6 +238,10 @@ class CharRNN(object):
                             {self.input_data: x,
                              self.initial_state: state})
       x = np.array([[char2id(start_text[-1], vocab_index_dict)]])
+    else:
+      vocab_size = len(vocab_index_dict.keys())
+      x = np.array([[np.random.randint(0, vocab_size)]])
+      seq = []
 
     for i in range(length):
       state, logits = session.run([self.final_state,
