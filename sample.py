@@ -61,10 +61,13 @@ def main():
     args.init_model = result['latest_model']
     best_model = result['best_model']
     best_valid_ppl = result['best_valid_ppl']
-    args.encoding = result['encoding']
+    if 'encoding' in result:
+        args.encoding = result['encoding']
+    else:
+        args.encoding = 'utf-8'
     args.vocab_file = os.path.join(args.init_dir, 'vocab.json')
     vocab_index_dict, index_vocab_dict, vocab_size = load_vocab(args.vocab_file, args.encoding)
-        
+
     # Create graphs
     logging.info('Creating graph')
     graph = tf.Graph()

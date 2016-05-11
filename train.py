@@ -155,7 +155,10 @@ def main():
         args.init_model = result['latest_model']
         best_model = result['best_model']
         best_valid_ppl = result['best_valid_ppl']
-        args.encoding = result['encoding']
+        if 'encoding' in result:
+            args.encoding = result['encoding']
+        else:
+            args.encoding = 'utf-8'
         args.vocab_file = os.path.join(args.init_dir, 'vocab.json')
     else:
         params = {'batch_size': args.batch_size,
@@ -209,8 +212,6 @@ def main():
     num_unrollings = params['num_unrollings']
     train_batches = BatchGenerator(train_text, batch_size, num_unrollings, vocab_size, 
                                    vocab_index_dict, index_vocab_dict)
-    eval_train_batches = BatchGenerator(train_text, 1, 1, vocab_size,
-                                        vocab_index_dict, index_vocab_dict)
     valid_batches = BatchGenerator(valid_text, 1, 1, vocab_size,
                                    vocab_index_dict, index_vocab_dict)
     test_batches = BatchGenerator(test_text, 1, 1, vocab_size,
@@ -283,6 +284,7 @@ def main():
                                                     global_step=train_model.global_step)
                 logging.info('Latest model saved in %s\n', saved_path)
                 logging.info('Evaluate on validation set')
+
                 valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
                     session,
                     valid_size,
@@ -290,6 +292,7 @@ def main():
                     is_training=False,
                     verbose=args.verbose,
                     freq=args.progress_freq)
+
                 # save and update best model
                 if (not best_model) or (valid_ppl < best_valid_ppl):
                     best_model = best_model_saver.save(
