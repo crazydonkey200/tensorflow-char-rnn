@@ -212,8 +212,11 @@ def main():
     num_unrollings = params['num_unrollings']
     train_batches = BatchGenerator(train_text, batch_size, num_unrollings, vocab_size, 
                                    vocab_index_dict, index_vocab_dict)
-    valid_batches = BatchGenerator(valid_text, 1, 1, vocab_size,
+    # valid_batches = BatchGenerator(valid_text, 1, 1, vocab_size,
+    #                                vocab_index_dict, index_vocab_dict)
+    valid_batches = BatchGenerator(valid_text, batch_size, num_unrollings, vocab_size,
                                    vocab_index_dict, index_vocab_dict)
+
     test_batches = BatchGenerator(test_text, 1, 1, vocab_size,
                                   vocab_index_dict, index_vocab_dict)
 
@@ -285,7 +288,8 @@ def main():
                 logging.info('Latest model saved in %s\n', saved_path)
                 logging.info('Evaluate on validation set')
 
-                valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
+                # valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
+                valid_ppl, valid_summary_str, _ = train_model.run_epoch(
                     session,
                     valid_size,
                     valid_batches, 
