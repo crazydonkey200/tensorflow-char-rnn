@@ -58,7 +58,6 @@ def main():
     with open(os.path.join(args.init_dir, 'result.json'), 'r') as f:
         result = json.load(f)
     params = result['params']
-    args.init_model = result['latest_model']
     best_model = result['best_model']
     best_valid_ppl = result['best_valid_ppl']
     if 'encoding' in result:
@@ -80,7 +79,7 @@ def main():
         example_batches = BatchGenerator(args.example_text, 1, 1, vocab_size,
                                          vocab_index_dict, index_vocab_dict)
         with tf.Session(graph=graph) as session:
-            saver.restore(session, args.init_model)
+            saver.restore(session, best_model)
             ppl = valid_model.run_epoch(session, len(args.example_text),
                                         example_batches,
                                         is_training=False)[0]
@@ -91,7 +90,7 @@ def main():
             np.random.seed(args.seed)
         # Sampling a sequence 
         with tf.Session(graph=graph) as session:
-            saver.restore(session, args.init_model)
+            saver.restore(session, best_model)
             sample = valid_model.sample_seq(session, args.length, args.start_text,
                                             vocab_index_dict, index_vocab_dict,
                                             temperature=args.temperature,
