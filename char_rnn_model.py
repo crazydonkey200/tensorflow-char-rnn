@@ -12,7 +12,7 @@ class CharRNN(object):
   
   def __init__(self, is_training, batch_size, num_unrollings, vocab_size, 
                hidden_size, max_grad_norm, embedding_size, num_layers,
-               learning_rate, model, dropout=0.0):
+               learning_rate, model, dropout=0.0, input_dropout=0.0):
     self.batch_size = batch_size
     self.num_unrollings = num_unrollings
     if not is_training:
@@ -25,8 +25,11 @@ class CharRNN(object):
     self.embedding_size = embedding_size
     self.model = model
     self.dropout = dropout
+    self.input_dropout = input_dropout
     if embedding_size <= 0:
       self.input_size = vocab_size
+      # Don't do dropout on one hot representation.
+      self.input_dropout = 0.0
     else:
       self.input_size = embedding_size
     self.model_size = (embedding_size * vocab_size + # embedding parameters
@@ -95,14 +98,14 @@ class CharRNN(object):
         self.embedding = tf.constant(np.eye(self.vocab_size), dtype=tf.float32)
 
       inputs = tf.nn.embedding_lookup(self.embedding, self.input_data)
-      if is_training and self.dropout > 0:
-        inputs = tf.nn.dropout(inputs, 1 - self.dropout)
+      if is_training and self.input_dropout > 0:
+        inputs = tf.nn.dropout(inputs, 1 - self.input_dropout)
 
     with tf.name_scope('slice_inputs'):
       # Slice inputs into a list of shape [batch_size, 1] data colums.
       sliced_inputs = [tf.reshape(input_, [self.batch_size, self.input_size])
                        for input_ in tf.split(1, self.num_unrollings, inputs)]
-    
+
     # print(sliced_inputs[0].get_shape())
     # Copy cell to do unrolling and collect outputs.
     outputs, final_state = rnn.rnn(multi_cell, sliced_inputs, initial_state=self.initial_state)
