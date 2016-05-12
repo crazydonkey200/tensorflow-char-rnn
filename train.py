@@ -52,7 +52,11 @@ def main():
     # test_frac is computed as (1 - train_frac - valid_frac).
     parser.add_argument('--dropout', type=float, default=0.0,
                         help='dropout rate, default to 0 (no dropout).')
-    
+
+    parser.add_argument('--input_dropout', type=float, default=0.0,
+                        help=('dropout rate on input layer, default to 0 (no dropout),'
+                              'and no dropout if using one-hot representation.'))
+
     # Parameters for gradient descent.
     parser.add_argument('--max_grad_norm', type=float, default=5.,
                         help='clip global grad norm')
@@ -169,7 +173,8 @@ def main():
                   'num_layers': args.num_layers,
                   'learning_rate': args.learning_rate,
                   'model': args.model,
-                  'dropout': args.dropout}
+                  'dropout': args.dropout,
+                  'input_dropout': args.input_dropout}
         best_model = ''
     logging.info('Parameters are:\n%s\n', json.dumps(params, sort_keys=True, indent=4))
 
