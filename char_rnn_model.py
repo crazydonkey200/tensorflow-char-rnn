@@ -248,7 +248,7 @@ class CharRNN(object):
                                    self.logits],
                                   {self.input_data: x,
                                    self.initial_state: state})
-      unnormalized_probs = np.exp((logits - np.min(logits)) / temperature)
+      unnormalized_probs = np.exp((logits - np.max(logits)) / temperature)
       probs = unnormalized_probs / np.sum(unnormalized_probs)
 
       if max_prob:
