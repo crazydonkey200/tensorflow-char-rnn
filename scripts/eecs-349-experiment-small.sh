@@ -1,11 +1,11 @@
 python train.py \
-       --data_file=data/tiny_shakespeare.txt \
+       --data_file=data/eecs349-data.txt \
        --num_epochs=50 \
-       --hidden_size=8 \
+       --hidden_size=4 \
        --num_layers=1 \
-       --log_to_file \
        --model="rnn" \
+       --batch_size=100 \
        --output_dir=small
 
 python sample.py --init_dir=small
-screen -X
+screen -X quit
