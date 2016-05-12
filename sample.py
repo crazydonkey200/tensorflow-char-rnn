@@ -72,7 +72,7 @@ def main():
     graph = tf.Graph()
     with graph.as_default():
         with tf.name_scope('evaluation'):
-            valid_model = CharRNN(is_training=False, **params)
+            test_model = CharRNN(is_training=False, use_batch=False, **params)
             saver = tf.train.Saver(name='checkpoint_saver')
 
     if args.evaluate:
@@ -80,7 +80,7 @@ def main():
                                          vocab_index_dict, index_vocab_dict)
         with tf.Session(graph=graph) as session:
             saver.restore(session, best_model)
-            ppl = valid_model.run_epoch(session, len(args.example_text),
+            ppl = test_model.run_epoch(session, len(args.example_text),
                                         example_batches,
                                         is_training=False)[0]
             print('Example text is: %s' % args.example_text)
@@ -91,13 +91,12 @@ def main():
         # Sampling a sequence 
         with tf.Session(graph=graph) as session:
             saver.restore(session, best_model)
-            sample = valid_model.sample_seq(session, args.length, args.start_text,
+            sample = test_model.sample_seq(session, args.length, args.start_text,
                                             vocab_index_dict, index_vocab_dict,
                                             temperature=args.temperature,
                                             max_prob=args.max_prob)
             print('Sampled text is:\n%s' % sample)
         return sample
-            
 
 if __name__ == '__main__':
     main()

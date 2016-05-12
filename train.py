@@ -63,7 +63,7 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=2e-3,
                         help='initial learning rate')
     parser.add_argument('--decay_rate', type=float, default=0.95,
-                        help='decay rate for rmsprop')
+                        help='decay rate')
 
     # Parameters for logging.
     parser.add_argument('--log_to_file', dest='log_to_file', action='store_true',
@@ -238,10 +238,12 @@ def main():
     graph = tf.Graph()
     with graph.as_default():
         with tf.name_scope('training'):
-            train_model = CharRNN(is_training=True, **params)
+            train_model = CharRNN(is_training=True, use_batch=True, **params)
         tf.get_variable_scope().reuse_variables()
+        with tf.name_scope('validation'):
+            valid_model = CharRNN(is_training=False, use_batch=True, **params)
         with tf.name_scope('evaluation'):
-            valid_model = CharRNN(is_training=False, **params)
+            test_model = CharRNN(is_training=False, use_batch=False, **params)
             saver = tf.train.Saver(name='checkpoint_saver')
             best_model_saver = tf.train.Saver(name='best_model_saver')
 
@@ -294,7 +296,7 @@ def main():
                 logging.info('Evaluate on validation set')
 
                 # valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
-                valid_ppl, valid_summary_str, _ = train_model.run_epoch(
+                valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
                     session,
                     valid_size,
                     valid_batches, 
@@ -328,7 +330,7 @@ def main():
             logging.info('Best validation ppl is %f\n', best_valid_ppl)
             logging.info('Evaluate the best model on test set')
             saver.restore(session, best_model)
-            test_ppl, _, _ = valid_model.run_epoch(session, test_size, test_batches,
+            test_ppl, _, _ = test_model.run_epoch(session, test_size, test_batches,
                                                    is_training=False,
                                                    verbose=args.verbose,
                                                    freq=args.progress_freq)

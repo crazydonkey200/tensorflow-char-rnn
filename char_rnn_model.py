@@ -12,10 +12,10 @@ class CharRNN(object):
   
   def __init__(self, is_training, batch_size, num_unrollings, vocab_size, 
                hidden_size, max_grad_norm, embedding_size, num_layers,
-               learning_rate, model, dropout=0.0, input_dropout=0.0):
+               learning_rate, model, dropout=0.0, input_dropout=0.0, use_batch=True):
     self.batch_size = batch_size
     self.num_unrollings = num_unrollings
-    if not is_training:
+    if not use_batch:
       self.batch_size = 1
       self.num_unrollings = 1
     self.hidden_size = hidden_size
