@@ -7,5 +7,4 @@ python train.py \
        --batch_size=64 \
        --output_dir=large \
 
-python sample.py --init_dir=large
-screen -X quit
+tensorboard --logdir=large/tensorboard_log/ --port=6007
