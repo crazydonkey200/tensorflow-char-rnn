@@ -1,6 +1,6 @@
 python train.py \
        --data_file=data/eecs349-data.txt \
-       --num_epochs=100 \
+       --num_epochs=50 \
        --hidden_size=8 \
        --num_layers=1 \
        --model="rnn" \
