@@ -103,10 +103,9 @@ class CharRNN(object):
 
     with tf.name_scope('slice_inputs'):
       # Slice inputs into a list of shape [batch_size, 1] data colums.
-      sliced_inputs = [tf.reshape(input_, [self.batch_size, self.input_size])
+      sliced_inputs = [tf.squeeze(input_, [1])
                        for input_ in tf.split(1, self.num_unrollings, inputs)]
-
-    # print(sliced_inputs[0].get_shape())
+      
     # Copy cell to do unrolling and collect outputs.
     outputs, final_state = rnn.rnn(multi_cell, sliced_inputs, initial_state=self.initial_state)
     self.final_state = final_state
@@ -129,7 +128,7 @@ class CharRNN(object):
     with tf.name_scope('loss'):
       # Compute mean cross entropy loss for each output.
       loss = tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, flat_targets)
-      self.mean_loss = tf.reduce_sum(loss) / (self.batch_size * self.num_unrollings)
+      self.mean_loss = tf.reduce_mean(loss)
 
     with tf.name_scope('loss_monitor'):
       # Count the number of elements and the sum of mean_loss
