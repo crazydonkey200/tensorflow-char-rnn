@@ -2,7 +2,6 @@ import logging
 import time
 import numpy as np
 import tensorflow as tf
-from tensorflow.models.rnn import rnn
 
 # Disable Tensorflow logging messages.
 logging.getLogger('tensorflow').setLevel(logging.WARNING)
@@ -57,7 +56,8 @@ class CharRNN(object):
     elif self.model == 'gru':
       cell_fn = tf.nn.rnn_cell.GRUCell
 
-    params = {'input_size': self.input_size}
+    # params = {'input_size': self.input_size}
+    params = {'state_is_tuple': False}
     if self.model == 'lstm':
       # add bias to forget gate in lstm.
       params['forget_bias'] = 0.0
@@ -66,7 +66,7 @@ class CharRNN(object):
                    **params)
 
     cells = [cell]
-    params['input_size'] = self.hidden_size
+    # params['input_size'] = self.hidden_size
     # more explicit way to create cells for MultiRNNCell than
     # [higher_layer_cell] * (self.num_layers - 1)
     for i in range(self.num_layers-1):
@@ -107,7 +107,8 @@ class CharRNN(object):
                        for input_ in tf.split(1, self.num_unrollings, inputs)]
       
     # Copy cell to do unrolling and collect outputs.
-    outputs, final_state = rnn.rnn(multi_cell, sliced_inputs, initial_state=self.initial_state)
+    outputs, final_state = tf.nn.rnn(multi_cell, sliced_inputs,
+                                     initial_state=self.initial_state)
     self.final_state = final_state
 
     with tf.name_scope('flatten_ouputs'):
