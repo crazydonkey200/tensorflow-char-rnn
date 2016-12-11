@@ -5,27 +5,10 @@ A TensorFlow implementation of Andrej Karpathy's [Char-RNN](https://github.com/k
 
 ## Dependencies
 - Python 2.7
-- TensorFlow >= 0.7.0
+- TensorFlow >= 0.12.0
 - NumPy >= 1.10.0
 
-Follow the instructions on [TensorFlow official website](https://www.tensorflow.org/versions/r0.8/get_started/os_setup.html#download-and-setup) to install TensorFlow. 
-
-If you use their pip installation:
-
-```bash
-# Ubuntu/Linux 64-bit, CPU only:
-$ sudo pip install --upgrade https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.8.0-cp27-none-linux_x86_64.whl
-
-# Ubuntu/Linux 64-bit, GPU enabled. Requires CUDA toolkit 7.5 and CuDNN v4.  For
-# other versions, see "Install from sources" below.
-$ sudo pip install --upgrade https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.8.0-cp27-none-linux_x86_64.whl
-
-# Mac OS X, CPU only:
-$ sudo easy_install --upgrade six
-$ sudo pip install --upgrade https://storage.googleapis.com/tensorflow/mac/tensorflow-0.8.0-py2-none-any.whl
-```
-
-It will also install other necessary packages (including NumPy) for you. 
+Follow the instructions on [TensorFlow official website](https://www.tensorflow.org/) to install TensorFlow. 
 
 # Test
 
