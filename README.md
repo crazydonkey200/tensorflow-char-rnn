@@ -5,10 +5,12 @@ A TensorFlow implementation of Andrej Karpathy's [Char-RNN](https://github.com/k
 
 ## Dependencies
 - Python 2.7
-- TensorFlow >= 0.12.0
+- TensorFlow == 0.10.0
 - NumPy >= 1.10.0
 
 Follow the instructions on [TensorFlow official website](https://www.tensorflow.org/) to install TensorFlow. 
+
+Right now the code runs with TF 0.10. Moving to TF 1.0 is in progress.
 
 # Test
 
