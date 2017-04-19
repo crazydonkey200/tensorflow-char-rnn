@@ -9,7 +9,6 @@ import sys
 import numpy as np
 from char_rnn_model import *
 
-TF_VERSION = int(tf.__version__.split('.')[1])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -260,21 +259,16 @@ def main():
         # results are saved correctly so that training can
         # be continued later after interruption.
         with tf.Session(graph=graph) as session:
-            # Version 8 changed the api of summary writer to use
-            # graph instead of graph_def.
-            if TF_VERSION >= 8:
-                graph_info = session.graph
-            else:
-                graph_info = session.graph_def
+            graph_info = session.graph
 
-            train_writer = tf.train.SummaryWriter(args.tb_log_dir + 'train/', graph_info)
-            valid_writer = tf.train.SummaryWriter(args.tb_log_dir + 'valid/', graph_info)
+            train_writer = tf.summary.FileWriter(args.tb_log_dir + 'train/', graph_info)
+            valid_writer = tf.summary.FileWriter(args.tb_log_dir + 'valid/', graph_info)
 
             # load a saved model or start from random initialization.
             if args.init_model:
                 saver.restore(session, args.init_model)
             else:
-                tf.initialize_all_variables().run()
+                tf.global_variables_initializer().run()
             for i in range(args.num_epochs):
                 logging.info('=' * 19 + ' Epoch %d ' + '=' * 19 + '\n', i)
                 logging.info('Training on training set')
@@ -291,7 +285,7 @@ def main():
                 train_writer.flush()
                 # save model
                 saved_path = saver.save(session, args.save_model,
-                                                    global_step=train_model.global_step)
+                                        global_step=train_model.global_step)
                 logging.info('Latest model saved in %s\n', saved_path)
                 logging.info('Evaluate on validation set')
 
