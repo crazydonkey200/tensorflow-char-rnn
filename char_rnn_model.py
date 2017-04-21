@@ -63,16 +63,18 @@ class CharRNN(object):
       params['forget_bias'] = 0.0
       params['state_is_tuple'] = True
     # Create multilayer cell.
-    cell = cell_fn(self.hidden_size,
-                   **params)
+    cell = cell_fn(
+        self.hidden_size, reuse=tf.get_variable_scope().reuse,
+        **params)
 
     cells = [cell]
     # params['input_size'] = self.hidden_size
     # more explicit way to create cells for MultiRNNCell than
     # [higher_layer_cell] * (self.num_layers - 1)
     for i in range(self.num_layers-1):
-      higher_layer_cell = cell_fn(self.hidden_size,
-                                  **params)
+      higher_layer_cell = cell_fn(
+          self.hidden_size, reuse=tf.get_variable_scope().reuse,
+          **params)
       cells.append(higher_layer_cell)
 
     if is_training and self.dropout > 0:
