@@ -53,7 +53,7 @@ python sample.py --init_dir=your-output-folder --start_text="The meaning of life
 ```
 
 ## Visualization
-To use Tensorboard (a visualization tool in TensorFlow) to [visualize the learning] (https://www.tensorflow.org/versions/r0.8/how_tos/summaries_and_tensorboard/index.html#tensorboard-visualizing-learning) (the "events" tab) and [the computation graph](https://www.tensorflow.org/versions/r0.8/how_tos/graph_viz/index.html#tensorboard-graph-visualization) (the "graph" tab).
+To use Tensorboard (a visualization tool in TensorFlow) to [visualize the learning](https://www.tensorflow.org/get_started/summaries_and_tensorboard#tensorboard-visualizing-learning) (the "events" tab) and [the computation graph](https://www.tensorflow.org/versions/r0.8/how_tos/graph_viz/index.html#tensorboard-graph-visualization) (the "graph" tab).
 
 First run:
 ```bash
