@@ -5,7 +5,7 @@ A TensorFlow implementation of Andrej Karpathy's [Char-RNN](https://github.com/k
 
 ## Dependencies
 - Python 2.7
-- TensorFlow >= 1.0
+- TensorFlow == 1.1
 
 Follow the instructions on [TensorFlow official website](https://www.tensorflow.org/) to install TensorFlow. 
 
