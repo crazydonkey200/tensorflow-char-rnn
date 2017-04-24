@@ -6,7 +6,5 @@ apt-get update
 apt-get upgrade
 apt-get install git
 pip install --upgrade tensorflow
-git clone https://github.com/your-repo.git
+git clone https://github.com/crazydonkey200/tensorflow-char-rnn.git
 cd tensorflow-char-rnn
-git remote add upstream https://github.com/crazydonkey200/tensorflow-char-rnn.git
-git remote -v
