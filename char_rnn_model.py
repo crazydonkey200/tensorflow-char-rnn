@@ -143,7 +143,8 @@ class CharRNN(object):
 
     with tf.name_scope('loss'):
       # Compute mean cross entropy loss for each output.
-      loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=flat_targets)
+      loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        logits=self.logits, labels=flat_targets)
       self.mean_loss = tf.reduce_mean(loss)
 
     with tf.name_scope('loss_monitor'):
@@ -192,7 +193,7 @@ class CharRNN(object):
                                                 global_step=self.global_step)
       
   def run_epoch(self, session, data_size, batch_generator, is_training,
-                verbose=0, freq=10, summary_writer=None, debug=False):
+                verbose=0, freq=10, summary_writer=None, debug=False, divide_by_n=1):
     """Runs the model on the given data for one full pass."""
     # epoch_size = ((data_size // self.batch_size) - 1) // self.num_unrollings
     epoch_size = data_size // (self.batch_size * self.num_unrollings)
@@ -215,7 +216,7 @@ class CharRNN(object):
     state = session.run(self.zero_state)
     self.reset_loss_monitor.run()
     start_time = time.time()
-    for step in range(epoch_size):
+    for step in range(epoch_size / divide_by_n):
       # Generate the batch and use [:-1] as inputs and [1:] as targets.
       data = batch_generator.next()
       inputs = np.array(data[:-1]).transpose()
