@@ -31,6 +31,8 @@ def main():
                               ' intermediate results and models.'))
     parser.add_argument('--n_save', type=int, default=1,
                         help='how many times to save the model during each epoch.')
+    parser.add_argument('--max_to_keep', type=int, default=5,
+                        help='how many recent models to keep.')
     
     # Parameters to configure the neural network.
     parser.add_argument('--hidden_size', type=int, default=128,
@@ -249,7 +251,7 @@ def main():
             valid_model = CharRNN(is_training=False, use_batch=True, **params)
         with tf.name_scope('evaluation'):
             test_model = CharRNN(is_training=False, use_batch=False, **params)
-            saver = tf.train.Saver(name='checkpoint_saver')
+            saver = tf.train.Saver(name='checkpoint_saver', max_to_keep=args.max_to_keep)
             best_model_saver = tf.train.Saver(name='best_model_saver')
 
     logging.info('Model size (number of parameters): %s\n', train_model.model_size)
