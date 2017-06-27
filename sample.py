@@ -17,18 +17,22 @@ def main():
     parser.add_argument('--init_dir', type=str, default='',
                         help='continue from the outputs in the given directory')
 
+    # Parameters for picking which model to use. 
+    parser.add_argument('--model_path', type=str, default='',
+                        help='path to the model file like output/best_model/model-40.')
+
     # Parameters for sampling.
     parser.add_argument('--temperature', type=float,
                         default=1.0,
                         help=('Temperature for sampling from softmax: '
                               'higher temperature, more random; '
                               'lower temperature, more greedy.'))
-    
+
     parser.add_argument('--max_prob', dest='max_prob', action='store_true',
                         help='always pick the most probable next character in sampling')
 
     parser.set_defaults(max_prob=False)
-    
+
     parser.add_argument('--start_text', type=str,
                         default='The meaning of life is ',
                         help='the text to start with')
@@ -61,7 +65,12 @@ def main():
     with open(os.path.join(args.init_dir, 'result.json'), 'r') as f:
         result = json.load(f)
     params = result['params']
-    best_model = result['best_model']
+
+    if args.model_path:    
+        best_model = args.model_path
+    else:
+        best_model = result['best_model']
+
     best_valid_ppl = result['best_valid_ppl']
     if 'encoding' in result:
         args.encoding = result['encoding']
