@@ -216,7 +216,7 @@ class CharRNN(object):
     state = session.run(self.zero_state)
     self.reset_loss_monitor.run()
     start_time = time.time()
-    for step in range(epoch_size / divide_by_n):
+    for step in range(epoch_size // divide_by_n):
       # Generate the batch and use [:-1] as inputs and [1:] as targets.
       data = batch_generator.next()
       inputs = np.array(data[:-1]).transpose()
