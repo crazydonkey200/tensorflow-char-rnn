@@ -11,6 +11,7 @@ import sys
 
 import numpy as np
 from char_rnn_model import *
+from six import iteritems
 
 
 def main():
@@ -364,7 +365,7 @@ def load_vocab(vocab_file, encoding):
         vocab_index_dict = json.load(f)
     index_vocab_dict = {}
     vocab_size = 0
-    for char, index in vocab_index_dict.iteritems():
+    for char, index in iteritems(vocab_index_dict):
         index_vocab_dict[index] = char
         vocab_size += 1
     return vocab_index_dict, index_vocab_dict, vocab_size
