@@ -1,11 +1,10 @@
 # setup tensorflow and char-rnn in AWS ec2 ubuntu machine.
+apt-get install python
 wget https://bootstrap.pypa.io/get-pip.py
 python get-pip.py
 apt-get update
 apt-get upgrade
 apt-get install git
-pip install --upgrade https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.8.0-cp27-none-linux_x86_64.whl
-git clone https://github.com/your-repo.git
+pip install --upgrade tensorflow
+git clone https://github.com/crazydonkey200/tensorflow-char-rnn.git
 cd tensorflow-char-rnn
-git remote add upstream https://github.com/crazydonkey200/tensorflow-char-rnn.git
-git remote -v

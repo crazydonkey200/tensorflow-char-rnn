@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+
 import argparse
 import codecs
 import json
@@ -8,8 +11,8 @@ import sys
 
 import numpy as np
 from char_rnn_model import *
+from six import iteritems
 
-TF_VERSION = int(tf.__version__.split('.')[1])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -27,7 +30,11 @@ def main():
     parser.add_argument('--output_dir', type=str, default='output',
                         help=('directory to store final and'
                               ' intermediate results and models.'))
-
+    parser.add_argument('--n_save', type=int, default=1,
+                        help='how many times to save the model during each epoch.')
+    parser.add_argument('--max_to_keep', type=int, default=5,
+                        help='how many recent models to keep.')
+    
     # Parameters to configure the neural network.
     parser.add_argument('--hidden_size', type=int, default=128,
                         help='size of RNN hidden state vector')
@@ -200,7 +207,8 @@ def main():
     test_text = text[train_size + valid_size:]
 
     if args.vocab_file:
-        vocab_index_dict, index_vocab_dict, vocab_size = load_vocab(args.vocab_file, args.encoding)
+        vocab_index_dict, index_vocab_dict, vocab_size = load_vocab(
+          args.vocab_file, args.encoding)
     else:
         logging.info('Creating vocabulary')
         vocab_index_dict, index_vocab_dict, vocab_size = create_vocab(text)
@@ -244,7 +252,7 @@ def main():
             valid_model = CharRNN(is_training=False, use_batch=True, **params)
         with tf.name_scope('evaluation'):
             test_model = CharRNN(is_training=False, use_batch=False, **params)
-            saver = tf.train.Saver(name='checkpoint_saver')
+            saver = tf.train.Saver(name='checkpoint_saver', max_to_keep=args.max_to_keep)
             best_model_saver = tf.train.Saver(name='best_model_saver')
 
     logging.info('Model size (number of parameters): %s\n', train_model.model_size)
@@ -260,70 +268,68 @@ def main():
         # results are saved correctly so that training can
         # be continued later after interruption.
         with tf.Session(graph=graph) as session:
-            # Version 8 changed the api of summary writer to use
-            # graph instead of graph_def.
-            if TF_VERSION >= 8:
-                graph_info = session.graph
-            else:
-                graph_info = session.graph_def
+            graph_info = session.graph
 
-            train_writer = tf.train.SummaryWriter(args.tb_log_dir + 'train/', graph_info)
-            valid_writer = tf.train.SummaryWriter(args.tb_log_dir + 'valid/', graph_info)
+            train_writer = tf.summary.FileWriter(args.tb_log_dir + 'train/', graph_info)
+            valid_writer = tf.summary.FileWriter(args.tb_log_dir + 'valid/', graph_info)
 
             # load a saved model or start from random initialization.
             if args.init_model:
                 saver.restore(session, args.init_model)
             else:
-                tf.initialize_all_variables().run()
+                tf.global_variables_initializer().run()
             for i in range(args.num_epochs):
-                logging.info('=' * 19 + ' Epoch %d ' + '=' * 19 + '\n', i)
-                logging.info('Training on training set')
-                # training step
-                ppl, train_summary_str, global_step = train_model.run_epoch(
-                    session,
-                    train_size,
-                    train_batches,
-                    is_training=True,
-                    verbose=args.verbose,
-                    freq=args.progress_freq)
-                # record the summary
-                train_writer.add_summary(train_summary_str, global_step)
-                train_writer.flush()
-                # save model
-                saved_path = saver.save(session, args.save_model,
-                                                    global_step=train_model.global_step)
-                logging.info('Latest model saved in %s\n', saved_path)
-                logging.info('Evaluate on validation set')
-
-                # valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
-                valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
-                    session,
-                    valid_size,
-                    valid_batches, 
-                    is_training=False,
-                    verbose=args.verbose,
-                    freq=args.progress_freq)
-
-                # save and update best model
-                if (not best_model) or (valid_ppl < best_valid_ppl):
-                    best_model = best_model_saver.save(
+                for j in range(args.n_save):
+                    logging.info(
+                        '=' * 19 + ' Epoch %d: %d/%d' + '=' * 19 + '\n', i+1, j+1, args.n_save)
+                    logging.info('Training on training set')
+                    # training step
+                    ppl, train_summary_str, global_step = train_model.run_epoch(
                         session,
-                        args.save_best_model,
-                        global_step=train_model.global_step)
-                    best_valid_ppl = valid_ppl
-                valid_writer.add_summary(valid_summary_str, global_step)
-                valid_writer.flush()
-                logging.info('Best model is saved in %s', best_model)
-                logging.info('Best validation ppl is %f\n', best_valid_ppl)
-                result['latest_model'] = saved_path
-                result['best_model'] = best_model
-                # Convert to float because numpy.float is not json serializable.
-                result['best_valid_ppl'] = float(best_valid_ppl)
-                result_path = os.path.join(args.output_dir, 'result.json')
-                if os.path.exists(result_path):
-                    os.remove(result_path)
-                with open(result_path, 'w') as f:
-                    json.dump(result, f, indent=2, sort_keys=True)
+                        train_size,
+                        train_batches,
+                        is_training=True,
+                        verbose=args.verbose,
+                        freq=args.progress_freq,
+                        divide_by_n=args.n_save)
+                    # record the summary
+                    train_writer.add_summary(train_summary_str, global_step)
+                    train_writer.flush()
+                    # save model
+                    saved_path = saver.save(session, args.save_model,
+                                            global_step=train_model.global_step)
+                    logging.info('Latest model saved in %s\n', saved_path)
+                    logging.info('Evaluate on validation set')
+
+                    # valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
+                    valid_ppl, valid_summary_str, _ = valid_model.run_epoch(
+                        session,
+                        valid_size,
+                        valid_batches, 
+                        is_training=False,
+                        verbose=args.verbose,
+                        freq=args.progress_freq)
+
+                    # save and update best model
+                    if (not best_model) or (valid_ppl < best_valid_ppl):
+                        best_model = best_model_saver.save(
+                            session,
+                            args.save_best_model,
+                            global_step=train_model.global_step)
+                        best_valid_ppl = valid_ppl
+                    valid_writer.add_summary(valid_summary_str, global_step)
+                    valid_writer.flush()
+                    logging.info('Best model is saved in %s', best_model)
+                    logging.info('Best validation ppl is %f\n', best_valid_ppl)
+                    result['latest_model'] = saved_path
+                    result['best_model'] = best_model
+                    # Convert to float because numpy.float is not json serializable.
+                    result['best_valid_ppl'] = float(best_valid_ppl)
+                    result_path = os.path.join(args.output_dir, 'result.json')
+                    if os.path.exists(result_path):
+                        os.remove(result_path)
+                    with open(result_path, 'w') as f:
+                        json.dump(result, f, indent=2, sort_keys=True)
 
             logging.info('Latest model is saved in %s', saved_path)
             logging.info('Best model is saved in %s', best_model)
@@ -359,7 +365,7 @@ def load_vocab(vocab_file, encoding):
         vocab_index_dict = json.load(f)
     index_vocab_dict = {}
     vocab_size = 0
-    for char, index in vocab_index_dict.iteritems():
+    for char, index in iteritems(vocab_index_dict):
         index_vocab_dict[index] = char
         vocab_size += 1
     return vocab_index_dict, index_vocab_dict, vocab_size

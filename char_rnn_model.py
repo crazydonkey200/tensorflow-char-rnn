@@ -1,8 +1,9 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import logging
 import time
 import numpy as np
 import tensorflow as tf
-from tensorflow.models.rnn import rnn
 
 # Disable Tensorflow logging messages.
 logging.getLogger('tensorflow').setLevel(logging.WARNING)
@@ -51,49 +52,61 @@ class CharRNN(object):
                                   name='targets')
 
     if self.model == 'rnn':
-      cell_fn = tf.nn.rnn_cell.BasicRNNCell
+      cell_fn = tf.contrib.rnn.BasicRNNCell
     elif self.model == 'lstm':
-      cell_fn = tf.nn.rnn_cell.BasicLSTMCell
+      cell_fn = tf.contrib.rnn.BasicLSTMCell
     elif self.model == 'gru':
-      cell_fn = tf.nn.rnn_cell.GRUCell
+      cell_fn = tf.contrib.rnn.GRUCell
 
-    params = {'input_size': self.input_size}
+    # params = {'input_size': self.input_size}
+    params = {}
     if self.model == 'lstm':
       # add bias to forget gate in lstm.
       params['forget_bias'] = 0.0
+      params['state_is_tuple'] = True
     # Create multilayer cell.
-    cell = cell_fn(self.hidden_size,
-                   **params)
+    cell = cell_fn(
+        self.hidden_size, reuse=tf.get_variable_scope().reuse,
+        **params)
 
     cells = [cell]
-    params['input_size'] = self.hidden_size
+    # params['input_size'] = self.hidden_size
     # more explicit way to create cells for MultiRNNCell than
     # [higher_layer_cell] * (self.num_layers - 1)
     for i in range(self.num_layers-1):
-      higher_layer_cell = cell_fn(self.hidden_size,
-                                  **params)
+      higher_layer_cell = cell_fn(
+          self.hidden_size, reuse=tf.get_variable_scope().reuse,
+          **params)
       cells.append(higher_layer_cell)
 
     if is_training and self.dropout > 0:
-      cells = [tf.nn.rnn_cell.DropoutWrapper(cell,
-                                             output_keep_prob=1.0-self.dropout)
+      cells = [tf.contrib.rnn.DropoutWrapper(
+        cell,
+        output_keep_prob=1.0-self.dropout)
                for cell in cells]
-        
-    multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
+
+    multi_cell = tf.contrib.rnn.MultiRNNCell(cells)
 
     with tf.name_scope('initial_state'):
       # zero_state is used to compute the intial state for cell.
       self.zero_state = multi_cell.zero_state(self.batch_size, tf.float32)
       # Placeholder to feed in initial state.
-      self.initial_state = tf.placeholder(tf.float32,
-                                          [self.batch_size, multi_cell.state_size],
-                                          'initial_state')
+      # self.initial_state = tf.placeholder(
+      #   tf.float32,
+      #   [self.batch_size, multi_cell.state_size],
+      #   'initial_state')
+
+      self.initial_state = create_tuple_placeholders_with_default(
+        multi_cell.zero_state(batch_size, tf.float32),
+        extra_dims=(None,),
+        shape=multi_cell.state_size)      
+      
 
     # Embeddings layers.
     with tf.name_scope('embedding_layer'):
       if embedding_size > 0:
-        self.embedding = tf.get_variable("embedding",
-                                         [self.vocab_size, self.embedding_size])
+        self.embedding = tf.get_variable(
+          'embedding', [self.vocab_size, self.embedding_size])
       else:
         self.embedding = tf.constant(np.eye(self.vocab_size), dtype=tf.float32)
 
@@ -104,19 +117,22 @@ class CharRNN(object):
     with tf.name_scope('slice_inputs'):
       # Slice inputs into a list of shape [batch_size, 1] data colums.
       sliced_inputs = [tf.squeeze(input_, [1])
-                       for input_ in tf.split(1, self.num_unrollings, inputs)]
+                       for input_ in tf.split(axis=1, num_or_size_splits=self.num_unrollings, value=inputs)]
       
     # Copy cell to do unrolling and collect outputs.
-    outputs, final_state = rnn.rnn(multi_cell, sliced_inputs, initial_state=self.initial_state)
+    outputs, final_state = tf.contrib.rnn.static_rnn(
+      multi_cell, sliced_inputs,
+      initial_state=self.initial_state)
+
     self.final_state = final_state
 
     with tf.name_scope('flatten_ouputs'):
       # Flatten the outputs into one dimension.
-      flat_outputs = tf.reshape(tf.concat(1, outputs), [-1, hidden_size])
+      flat_outputs = tf.reshape(tf.concat(axis=1, values=outputs), [-1, hidden_size])
 
     with tf.name_scope('flatten_targets'):
       # Flatten the targets too.
-      flat_targets = tf.reshape(tf.concat(1, self.targets), [-1])
+      flat_targets = tf.reshape(tf.concat(axis=1, values=self.targets), [-1])
     
     # Create softmax parameters, weights and bias.
     with tf.variable_scope('softmax') as sm_vs:
@@ -127,7 +143,8 @@ class CharRNN(object):
 
     with tf.name_scope('loss'):
       # Compute mean cross entropy loss for each output.
-      loss = tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, flat_targets)
+      loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        logits=self.logits, labels=flat_targets)
       self.mean_loss = tf.reduce_mean(loss)
 
     with tf.name_scope('loss_monitor'):
@@ -151,11 +168,11 @@ class CharRNN(object):
       loss_summary_name = "average loss"
       ppl_summary_name = "perplexity"
   
-      average_loss_summary = tf.scalar_summary(loss_summary_name, self.average_loss)
-      ppl_summary = tf.scalar_summary(ppl_summary_name, self.ppl)
+      average_loss_summary = tf.summary.scalar(loss_summary_name, self.average_loss)
+      ppl_summary = tf.summary.scalar(ppl_summary_name, self.ppl)
 
     # Monitor the loss.
-    self.summaries = tf.merge_summary([average_loss_summary, ppl_summary],
+    self.summaries = tf.summary.merge([average_loss_summary, ppl_summary],
                                       name='loss_monitor')
     
     self.global_step = tf.get_variable('global_step', [],
@@ -176,7 +193,7 @@ class CharRNN(object):
                                                 global_step=self.global_step)
       
   def run_epoch(self, session, data_size, batch_generator, is_training,
-                verbose=0, freq=10, summary_writer=None, debug=False):
+                verbose=0, freq=10, summary_writer=None, debug=False, divide_by_n=1):
     """Runs the model on the given data for one full pass."""
     # epoch_size = ((data_size // self.batch_size) - 1) // self.num_unrollings
     epoch_size = data_size // (self.batch_size * self.num_unrollings)
@@ -196,10 +213,10 @@ class CharRNN(object):
 
     # Prepare initial state and reset the average loss
     # computation.
-    state = self.zero_state.eval()
+    state = session.run(self.zero_state)
     self.reset_loss_monitor.run()
     start_time = time.time()
-    for step in range(epoch_size):
+    for step in range(epoch_size // divide_by_n):
       # Generate the batch and use [:-1] as inputs and [1:] as targets.
       data = batch_generator.next()
       inputs = np.array(data[:-1]).transpose()
@@ -229,7 +246,7 @@ class CharRNN(object):
   def sample_seq(self, session, length, start_text, vocab_index_dict,
                  index_vocab_dict, temperature=1.0, max_prob=True):
 
-    state = self.zero_state.eval()
+    state = session.run(self.zero_state)
 
     # use start_text to warm up the RNN.
     if start_text is not None and len(start_text) > 0:
@@ -332,3 +349,36 @@ def id2char(index, index_vocab_dict):
     
 def id2char_list(lst, index_vocab_dict):
   return [id2char(i, index_vocab_dict) for i in lst]
+
+
+def create_tuple_placeholders_with_default(inputs, extra_dims, shape):
+  if isinstance(shape, int):
+    result = tf.placeholder_with_default(
+      inputs, list(extra_dims) + [shape])
+  else:
+    subplaceholders = [create_tuple_placeholders_with_default(
+      subinputs, extra_dims, subshape)
+                       for subinputs, subshape in zip(inputs, shape)]
+    t = type(shape)
+    if t == tuple:
+      result = t(subplaceholders)
+    else:
+      result = t(*subplaceholders)    
+  return result
+
+        
+def create_tuple_placeholders(dtype, extra_dims, shape):
+  if isinstance(shape, int):
+    result = tf.placeholder(dtype, list(extra_dims) + [shape])
+  else:
+    subplaceholders = [create_tuple_placeholders(dtype, extra_dims, subshape)
+                       for subshape in shape]
+    t = type(shape)
+
+    # Handles both tuple and LSTMStateTuple.
+    if t == tuple:
+      result = t(subplaceholders)
+    else:
+      result = t(*subplaceholders)
+  return result
+  
